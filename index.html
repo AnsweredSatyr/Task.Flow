@@ -1025,6 +1025,18 @@
       <div class="s-hint">glow · sunburst · confetti on task completion</div>
     </div>
 
+    <div class="s-section" id="syncSection">
+      <div class="s-title">Cloud Sync</div>
+      <div class="s-hint" id="syncStatusHint">Not signed in</div>
+      <button onclick="forcePushToCloud()" id="forceSyncBtn"
+        style="font-family:'DM Mono',monospace;font-size:0.72rem;font-weight:500;
+        letter-spacing:0.1em;text-transform:uppercase;padding:0.52rem 1rem;
+        background:var(--surf2);color:var(--muted);border:1px solid var(--border);border-radius:5px;
+        cursor:pointer;width:100%;transition:opacity 0.1s;margin-top:4px;">
+        Push local data to cloud
+      </button>
+    </div>
+
     <div class="s-section">
       <div class="s-title">Export</div>
       <div class="s-hint" style="margin-bottom:4px;">task · notes · due date · lane · sorted by due date</div>
@@ -3952,6 +3964,7 @@ async function doAuth() {
 }
 
 function updateSyncUI() {
+  updateSyncSection();
   const btn = document.getElementById('syncBtn');
   const dot = document.getElementById('syncDot');
   if (!btn || !dot) return;
@@ -4105,6 +4118,61 @@ function rtSubscribe() {
 
 function rtUnsub() {
   if (_rt) { _sb.removeChannel(_rt); _rt = null; }
+}
+
+// ── Force push ───────────────────────────────────────────
+async function forcePushToCloud() {
+  if (!_sb || !_user) { showToast('Sign in first', 'var(--now)'); return; }
+  const btn = document.getElementById('forceSyncBtn');
+  if (btn) { btn.textContent = 'Pushing…'; btn.disabled = true; }
+  try {
+    // Push boards
+    const bRows = boards.map((b, i) => ({
+      id: b.id, user_id: _user.id,
+      name: b.name, accent: b.accent || '#8B2A10', position: i
+    }));
+    await _sb.from('boards').upsert(bRows, { onConflict: 'id' });
+    // Push all tasks for every board
+    for (const b of boards) {
+      const lTasks   = (() => { try { return JSON.parse(localStorage.getItem('tf-board-' + b.id + '-tasks')   || '[]'); } catch { return []; } })();
+      const lDone    = (() => { try { return JSON.parse(localStorage.getItem('tf-board-' + b.id + '-done')    || '[]'); } catch { return []; } })();
+      const lArchive = (() => { try { return JSON.parse(localStorage.getItem('tf-board-' + b.id + '-archive') || '[]'); } catch { return []; } })();
+      const rows = [
+        ...lTasks.map((t,j)   => ({ id: String(t.id), user_id: _user.id, board_id: b.id, data: t, position: j, state: 'active' })),
+        ...lDone.map((t,j)    => ({ id: String(t.id), user_id: _user.id, board_id: b.id, data: t, position: j, state: 'done' })),
+        ...lArchive.map((t,j) => ({ id: String(t.id), user_id: _user.id, board_id: b.id, data: t, position: j, state: 'archived' }))
+      ];
+      if (rows.length) await _sb.from('tasks').upsert(rows, { onConflict: 'id' });
+      const lSettings = (() => { try { return JSON.parse(localStorage.getItem('tf-board-' + b.id + '-settings') || '{}'); } catch { return {}; } })();
+      const s = Object.assign({}, lSettings); delete s.apiKey;
+      if (Object.keys(s).length) {
+        await _sb.from('settings').upsert(
+          { board_id: b.id, user_id: _user.id, data: s },
+          { onConflict: 'board_id' }
+        );
+      }
+    }
+    showToast('All data pushed to cloud ✓', 'var(--later)');
+    setSyncDot('ok');
+  } catch(e) {
+    console.error('forcePush', e);
+    showToast('Push failed — check console', 'var(--now)');
+  } finally {
+    if (btn) { btn.textContent = 'Push local data to cloud'; btn.disabled = false; }
+  }
+}
+
+function updateSyncSection() {
+  const hint = document.getElementById('syncStatusHint');
+  const btn  = document.getElementById('forceSyncBtn');
+  if (!hint || !btn) return;
+  if (_user) {
+    hint.textContent = 'Signed in as ' + _user.email;
+    btn.style.display = 'block';
+  } else {
+    hint.textContent = 'Not signed in — click Sign in in the header';
+    btn.style.display = 'none';
+  }
 }
 
 // ── Boot ───────────────────────────────────────────────────
