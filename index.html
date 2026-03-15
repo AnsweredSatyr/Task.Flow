@@ -1,5 +1,5 @@
 <!DOCTYPE html>
-<html lang="en">
+<html lang="en" style="height:100%;overflow:hidden;">
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
@@ -28,7 +28,8 @@
     font-family: 'Syne', sans-serif;
     background: var(--bg);
     color: var(--text);
-    min-height: 100vh;
+    height: 100%;
+    overflow: hidden;
     display: flex;
     flex-direction: column;
     user-select: none;
@@ -39,8 +40,8 @@
     display: flex; align-items: center; justify-content: space-between;
     padding: 0.55rem 2rem 1.05rem;
     border-bottom: 1px solid var(--border);
-    position: sticky; top: 0;
     background: var(--bg); z-index: 100;
+    flex-shrink: 0;
   }
 
   .logo-wrap {
@@ -164,7 +165,7 @@
   /* ── Capture zone ── */
   .capture-zone {
     padding: 1.25rem 2rem; border-bottom: 1px solid var(--border);
-    background: var(--surface);
+    background: var(--surface); flex-shrink: 0;
   }
   .capture-normal { display: flex; flex-direction: column; gap: 0.45rem; }
   .capture-row { display: flex; gap: 8px; align-items: center; max-width: 960px; flex-wrap: wrap; }
@@ -234,9 +235,7 @@
   }
   .p-btn:last-child { border-right: none; }
   .p-btn:hover { background: var(--surf2); color: var(--text); }
-  .p-btn.sel-now   { background: var(--now);   color: #fff; }
-  .p-btn.sel-soon  { background: var(--soon);  color: #fff; }
-  .p-btn.sel-later { background: var(--later); color: #fff; }
+  .p-btn.active { color: #fff; }
 
   .add-btn {
     font-family: 'DM Mono', monospace; font-size: 0.75rem; font-weight: 500;
@@ -385,15 +384,15 @@
   .review-meta { font-family: 'DM Mono', monospace; font-size: 0.6rem; color: var(--dim); }
 
   /* ── Board ── */
-  main { flex: 1; display: grid; grid-template-columns: repeat(3, 1fr); }
+  main { flex: 1; display: flex; min-height: 0; overflow: hidden; }
 
-  .lane { border-right: 1px solid var(--border); display: flex; flex-direction: column; min-height: 300px; }
+  .lane { border-right: 1px solid var(--border); display: flex; flex-direction: column; min-height: 0; flex: 1; position: relative; transition: opacity 0.3s; }
   .lane:last-child { border-right: none; }
 
   .lane-header {
     padding: 0.9rem 1.25rem 0.7rem; border-bottom: 1px solid var(--border);
     display: flex; align-items: center; gap: 8px;
-    background: var(--bg); position: sticky; top: 57px; z-index: 5;
+    background: var(--bg); flex-shrink: 0;
   }
   .lane-dot { width: 7px; height: 7px; border-radius: 50%; flex-shrink: 0; }
   .lane-title {
@@ -414,14 +413,51 @@
     color: var(--muted); background: var(--surf2); padding: 1px 7px;
     border-radius: 20px; border: 1px solid var(--border);
   }
+  .lane-del-btn {
+    background: none; border: none; cursor: pointer; color: var(--dim);
+    font-size: 0.6rem; line-height: 1; padding: 0 0 0 4px;
+    opacity: 0; transition: opacity 0.1s, color 0.1s; flex-shrink: 0;
+  }
+  .lane-header:hover .lane-del-btn { opacity: 1; }
+  .lane-del-btn:hover { color: var(--now); }
+  .card-resize-handle {
+    position: absolute; bottom: 0; left: 0; right: 0; height: 6px;
+    cursor: ns-resize; z-index: 5; border-radius: 0 0 6px 6px;
+  }
+  .card-resize-handle:hover { background: rgba(255,255,255,0.06); }
+  .lane-resize-handle {
+    position: absolute; top: 0; right: -4px; width: 8px; height: 100%;
+    cursor: col-resize; z-index: 10;
+  }
+  .lane.dimmed { opacity: 0.1; pointer-events: none; }
+  @keyframes focusPickGlow {
+    0%,100% { box-shadow: 0 0 0 0 rgba(239,159,39,0); background: var(--bg); }
+    50%      { box-shadow: 0 0 14px 3px rgba(239,159,39,0.35); background: rgba(239,159,39,0.05); }
+  }
+  .lane-header.pick-glow { animation: focusPickGlow 1.5s ease-in-out infinite; cursor: pointer; }
+  .lane-header.pick-glow .lane-title { color: var(--soon); }
+  .focus-eye-btn {
+    background: none; border: none; cursor: pointer; padding: 0 2px;
+    display: flex; align-items: center; flex-shrink: 0;
+    opacity: 0; transition: opacity 0.12s;
+  }
+  .lane-header:hover .focus-eye-btn, .focus-eye-btn.active, .focus-eye-btn:hover { opacity: 1; }
+  .focus-eye-btn svg { width: 14px; height: 10px; }
+  .focus-eye-btn svg path, .focus-eye-btn svg circle { stroke: var(--dim); transition: stroke 0.12s; }
+  .focus-eye-btn:hover svg path, .focus-eye-btn:hover svg circle { stroke: var(--muted); }
+  .focus-eye-btn.active svg path, .focus-eye-btn.active svg circle { stroke: var(--soon); }
+  .lane-header.pick-glow .focus-eye-btn svg path,
+  .lane-header.pick-glow .focus-eye-btn svg circle { stroke: var(--soon); }
 
   .task-list {
     padding: 0.75rem; flex: 1;
     display: flex; flex-direction: column; gap: 5px;
-    overflow-y: auto; transition: background 0.1s;
+    overflow-y: auto; overflow-x: hidden;
+    min-height: 0; transition: background 0.1s;
   }
   .task-list::-webkit-scrollbar { width: 3px; }
-  .task-list::-webkit-scrollbar-thumb { background: var(--dim); border-radius: 3px; }
+  .task-list::-webkit-scrollbar-thumb { background: rgba(255,255,255,0.2); border-radius: 2px; }
+  .task-list::-webkit-scrollbar-track { background: transparent; }
   .task-list.drag-over {
     background: rgba(255,255,255,0.02);
     outline: 1.5px dashed var(--bordhi); outline-offset: -4px; border-radius: 6px;
@@ -453,7 +489,7 @@
     margin-top: 1px; flex-shrink: 0; line-height: 1; letter-spacing: -1px;
     transition: color 0.1s;
   }
-  .task-card:hover .drag-handle { color: var(--muted); }
+  .task-card:hover .drag-handle, .drag-handle:hover { color: var(--muted); }
 
   .check-btn {
     width: 15px; height: 15px; border-radius: 50%;
@@ -509,7 +545,43 @@
   }
   .edit-btn:hover { color: var(--accent); }
   .task-card.editing { border-color: var(--accent) !important; }
-  .task-card.editing .edit-btn { color: var(--accent); }
+  .task-card.editing .edit-btn, .edit-btn.active { color: var(--accent); }
+
+  /* ── Sub-tasks ── */
+  .st-btn { background:none; border:none; cursor:pointer; color:var(--dim); padding:2px 4px; border-radius:3px; display:flex; align-items:center; transition:color 0.1s; }
+  .st-btn:hover { color:var(--muted); }
+  .st-btn.has-st { color:var(--muted); }
+  .st-btn svg { width:10px; height:10px; }
+  .st-section { border-top:1px solid var(--border); padding:0 0.8rem 0.45rem; }
+  .st-header { display:flex; align-items:center; gap:6px; padding:0.3rem 0 0.25rem; }
+  .st-progress { font-family:'DM Mono',monospace; font-size:0.58rem; color:var(--muted); }
+  .st-collapse { background:none; border:none; cursor:pointer; color:var(--dim); font-size:0.55rem; padding:0; margin-left:auto; line-height:1; transition:color 0.1s; }
+  .st-collapse:hover { color:var(--muted); }
+  .st-list { display:flex; flex-direction:column; gap:3px; }
+  .st-item { display:flex; align-items:center; gap:6px; }
+  .st-box { width:11px; height:11px; border-radius:2px; flex-shrink:0; border:1.5px solid var(--dim); background:none; cursor:pointer; display:flex; align-items:center; justify-content:center; transition:border-color 0.12s,background 0.12s; }
+  .st-box:hover { border-color:var(--later); }
+  .st-box.checked { background:var(--later); border-color:var(--later); }
+  .st-box.checked::after { content:'✓'; font-size:7px; color:#fff; line-height:1; }
+  .st-text { font-family:'DM Mono',monospace; font-size:0.68rem; color:var(--muted); flex:1; line-height:1.4; }
+  .st-text.done, .st-panel-text.done { text-decoration:line-through; color:var(--dim); }
+  /* Sub-task panel */
+  .st-panel { display:none; position:fixed; width:240px; background:var(--surf2); border:1px solid var(--bordhi); border-radius:6px; z-index:500; box-shadow:0 8px 24px rgba(0,0,0,0.4); padding:0.6rem 0.75rem 0.75rem; }
+  .st-panel.open { display:block; }
+  .st-panel-label { font-family:'DM Mono',monospace; font-size:0.55rem; color:var(--dim); letter-spacing:0.1em; text-transform:uppercase; display:flex; align-items:center; justify-content:space-between; margin-bottom:0.4rem; }
+  .st-panel-count { color:var(--dim); }
+  .st-panel-list { display:flex; flex-direction:column; gap:4px; margin-bottom:0.5rem; }
+  .st-panel-item { display:flex; align-items:center; gap:6px; }
+  .st-panel-text { font-family:'DM Mono',monospace; font-size:0.7rem; color:var(--muted); flex:1; }
+  .st-del { background:none; border:none; cursor:pointer; color:var(--dim); font-size:0.6rem; padding:0 2px; opacity:0; transition:opacity 0.1s,color 0.1s; }
+  .st-panel-item:hover .st-del, .st-item:hover .st-del { opacity:1; }
+  .st-del:hover { color:var(--now); }
+  .st-input-row { display:flex; gap:5px; }
+  .st-input { flex:1; font-family:'DM Mono',monospace; font-size:0.7rem; background:var(--surf3); border:1px solid var(--border); border-radius:4px; color:var(--text); padding:0.3rem 0.5rem; outline:none; transition:border-color 0.12s; }
+  .st-input:focus { border-color:var(--bordhi); }
+  .st-input::placeholder { color:var(--dim); }
+  .st-add { font-family:'DM Mono',monospace; font-size:0.6rem; color:var(--muted); background:none; border:1px solid var(--border); border-radius:4px; padding:0.3rem 0.5rem; cursor:pointer; white-space:nowrap; transition:color 0.1s,border-color 0.1s; }
+  .st-add:hover { color:var(--text); border-color:var(--bordhi); }
 
   /* ── Edit Panel ── */
   .edit-panel { max-height: 0; overflow: hidden; transition: max-height 0.22s ease; border-top: 0px solid var(--border); }
@@ -589,12 +661,40 @@
     display: block; font-family: 'DM Mono', monospace; font-size: 0.78rem;
     background: var(--surf3); border: 1px solid var(--border);
     border-radius: 4px; color: var(--text);
-    padding: 0.5rem 0.6rem; resize: both; outline: none; overflow: auto;
+    padding: 0.5rem 0.6rem; resize: both; outline: none; overflow: hidden;
     line-height: 1.55; min-height: 58px; min-width: 220px;
     transition: border-color 0.12s, box-shadow 0.12s; user-select: text;
   }
   .note-textarea::placeholder { color: var(--dim); }
   .note-textarea:focus { border-color: var(--bordhi); box-shadow: 0 0 0 2px rgba(255,255,255,0.04); }
+
+  /* ── Auth & Sync ── */
+  .auth-overlay { display:none; position:fixed; inset:0; background:rgba(0,0,0,0.75); z-index:600; align-items:center; justify-content:center; }
+  .auth-overlay.open { display:flex; }
+  .auth-panel { background:var(--surface); border:1px solid var(--bordhi); border-radius:10px; width:340px; max-width:calc(100vw - 2rem); padding:1.75rem; display:flex; flex-direction:column; gap:0.85rem; box-shadow:0 20px 60px rgba(0,0,0,0.7); }
+  .auth-title { font-size:0.95rem; font-weight:600; color:var(--text); }
+  .auth-sub { font-family:'DM Mono',monospace; font-size:0.6rem; color:var(--dim); margin-top:-0.4rem; }
+  .auth-input { width:100%; font-family:'DM Mono',monospace; font-size:0.75rem; background:var(--surf2); border:1px solid var(--border); border-radius:5px; color:var(--text); padding:0.55rem 0.7rem; outline:none; transition:border-color 0.15s; }
+  .auth-input:focus { border-color:var(--bordhi); }
+  .auth-input::placeholder { color:var(--dim); }
+  .auth-btn { font-family:'DM Mono',monospace; font-size:0.7rem; font-weight:500; letter-spacing:0.08em; text-transform:uppercase; padding:0.55rem 1rem; background:var(--text); color:var(--bg); border:none; border-radius:5px; cursor:pointer; transition:opacity 0.1s; }
+  .auth-btn:hover { opacity:0.88; }
+  .auth-btn:disabled { opacity:0.35; cursor:default; }
+  .auth-toggle { font-family:'DM Mono',monospace; font-size:0.58rem; color:var(--dim); text-align:center; }
+  .auth-toggle span { color:var(--muted); text-decoration:underline; cursor:pointer; }
+  .auth-toggle span:hover { color:var(--text); }
+  .auth-err { font-family:'DM Mono',monospace; font-size:0.6rem; color:var(--now); display:none; }
+  .auth-err.show { display:block; }
+  .auth-msg { font-family:'DM Mono',monospace; font-size:0.6rem; color:var(--later); display:none; }
+  .auth-msg.show { display:block; }
+  .sync-btn { font-family:'DM Mono',monospace; font-size:0.58rem; letter-spacing:0.06em; text-transform:uppercase; color:var(--dim); background:none; border:1px solid var(--border); border-radius:4px; padding:0.22rem 0.5rem; cursor:pointer; transition:color 0.1s,border-color 0.1s; white-space:nowrap; }
+  .sync-btn:hover { color:var(--muted); border-color:var(--bordhi); }
+  .sync-btn.signed-in { color:var(--later); border-color:rgba(26,107,60,0.4); }
+  .sync-indicator { width:5px; height:5px; border-radius:50%; background:var(--dim); flex-shrink:0; transition:background 0.3s; }
+  .sync-indicator.syncing { background:var(--soon); animation:syncPulse 1s ease-in-out infinite; }
+  .sync-indicator.ok { background:var(--later); }
+  .sync-indicator.err { background:var(--now); }
+  @keyframes syncPulse { 0%,100%{opacity:1} 50%{opacity:0.3} }
 
   /* ── Empty state ── */
   .empty-state {
@@ -613,7 +713,34 @@
   }
 
   /* ── Footer / Done ── */
-  footer { border-top: 1px solid var(--border); background: var(--surface); }
+  footer { border-top: 1px solid var(--border); background: var(--surface); flex-shrink: 0; }
+  .board-tab-bar {
+    display: flex; align-items: center; height: 36px;
+    border-bottom: 1px solid var(--border); overflow-x: auto; overflow-y: hidden;
+    background: var(--bg); padding: 0 4px;
+  }
+  .board-tab-bar::-webkit-scrollbar { height: 0; }
+  .btab {
+    display: flex; align-items: center; gap: 6px; padding: 0 10px; height: 26px;
+    border-radius: 4px; cursor: pointer; font-family: 'DM Mono', monospace;
+    font-size: 0.62rem; border: 1px solid transparent; white-space: nowrap;
+    flex-shrink: 0; transition: border-color 0.15s, background 0.15s;
+    color: var(--muted); user-select: none; margin: 0 2px;
+  }
+  .btab:hover { border-color: var(--border); }
+  .btab.active { color: var(--text); }
+  .btab-name { max-width: 100px; overflow: hidden; text-overflow: ellipsis; }
+  .btab-close { font-size: 0.52rem; color: var(--dim); margin-left: 2px; opacity: 0; transition: opacity 0.1s, color 0.1s; cursor: pointer; line-height: 1; }
+  .btab:hover .btab-close { opacity: 1; }
+  .btab-close:hover { color: var(--now); }
+  .btab-rename { font-family: 'DM Mono', monospace; font-size: 0.62rem; color: var(--text); background: none; border: none; outline: none; width: 80px; padding: 0; }
+  .btab-add { color: var(--dim); font-size: 0.9rem; cursor: pointer; padding: 0 8px; transition: color 0.1s; flex-shrink: 0; line-height: 1; }
+  .btab-add:hover { color: var(--text); }
+  @keyframes tabGlow {
+    0%,100% { box-shadow: 0 0 4px rgba(232,64,12,0.3); border-color: rgba(232,64,12,0.4); }
+    50%      { box-shadow: 0 0 10px rgba(232,64,12,0.65); border-color: rgba(232,64,12,0.8); }
+  }
+  .btab.tab-alert { animation: tabGlow 2.5s ease-in-out infinite; color: var(--text); }
   .done-toggle {
     width: 100%; background: none; border: none; cursor: pointer;
     color: var(--muted); font-family: 'DM Mono', monospace;
@@ -648,6 +775,34 @@
   }
   .restore-btn:hover { color: var(--text); }
   /* Archive overlay */
+  .qc-overlay { display: none; position: fixed; inset: 0; background: rgba(0,0,0,0.72); z-index: 400; align-items: center; justify-content: center; }
+  .qc-overlay.open { display: flex; }
+  .qc-panel { background: var(--surface); border: 1px solid var(--bordhi); border-radius: 12px; width: 440px; max-width: calc(100vw - 2rem); padding: 1.35rem; display: flex; flex-direction: column; gap: 0.75rem; box-shadow: 0 20px 60px rgba(0,0,0,0.7); animation: qcIn 0.16s ease-out; }
+  @keyframes qcIn { from { opacity:0; transform:scale(0.96) translateY(-8px); } to { opacity:1; transform:none; } }
+  .qc-title { font-family:'DM Mono',monospace; font-size:0.58rem; letter-spacing:0.12em; text-transform:uppercase; color:var(--dim); }
+  .qc-task-input { width:100%; font-family:'Syne',sans-serif; font-size:0.95rem; font-weight:500; background:var(--bg); border:1px solid var(--bordhi); border-radius:6px; color:var(--text); padding:0.65rem 1rem; outline:none; transition:border-color 0.15s; }
+  .qc-task-input:focus { border-color:var(--now); box-shadow:0 0 0 3px rgba(232,64,12,0.1); }
+  .qc-task-input::placeholder { color:var(--muted); font-weight:400; }
+  .qc-due-wrap { display:flex; align-items:center; background:var(--bg); border:1px solid var(--bordhi); border-radius:6px; overflow:hidden; transition:border-color 0.15s; }
+  .qc-due-wrap:focus-within { border-color:var(--soon); }
+  .qc-due-input { font-family:'DM Mono',monospace; font-size:0.72rem; background:transparent; border:none; color:var(--muted); padding:0.55rem 0.75rem; outline:none; flex:1; }
+  .qc-due-input::placeholder { color:var(--dim); }
+  .qc-due-parsed { font-family:'DM Mono',monospace; font-size:0.6rem; color:var(--soon); padding-right:0.75rem; white-space:nowrap; }
+  .qc-priority-group { display:flex; gap:4px; flex-wrap:wrap; }
+  .qc-p-btn { font-family:'DM Mono',monospace; font-size:0.62rem; padding:0.3rem 0.65rem; background:none; border:1px solid var(--border); border-radius:4px; color:var(--muted); cursor:pointer; transition:all 0.12s; white-space:nowrap; }
+  .qc-p-btn.active { color:#fff; }
+  .qc-notes-toggle { font-family:'DM Mono',monospace; font-size:0.6rem; color:var(--dim); background:none; border:none; cursor:pointer; padding:0; text-align:left; transition:color 0.1s; }
+  .qc-notes-toggle:hover { color:var(--muted); }
+  .qc-notes { display:none; width:100%; font-family:'DM Mono',monospace; font-size:0.75rem; background:var(--surf2); border:1px solid var(--border); border-radius:6px; color:var(--text); padding:0.55rem 0.75rem; outline:none; resize:vertical; min-height:64px; }
+  .qc-notes.open { display:block; }
+  .qc-notes:focus { border-color:var(--bordhi); }
+  .qc-notes::placeholder { color:var(--dim); }
+  .qc-footer { display:flex; align-items:center; gap:10px; }
+  .qc-add-btn { font-family:'DM Mono',monospace; font-size:0.72rem; font-weight:500; letter-spacing:0.1em; text-transform:uppercase; padding:0.5rem 1.25rem; background:var(--text); color:var(--bg); border:none; border-radius:5px; cursor:pointer; transition:opacity 0.1s; }
+  .qc-add-btn:hover { opacity:0.88; }
+  .qc-another { display:flex; align-items:center; gap:6px; font-family:'DM Mono',monospace; font-size:0.6rem; color:var(--dim); cursor:pointer; user-select:none; margin-left:auto; }
+  .qc-another input[type=checkbox] { accent-color:var(--later); width:11px; height:11px; cursor:pointer; }
+  .qc-esc-hint { font-family:'DM Mono',monospace; font-size:0.58rem; color:var(--dim); }
   .archive-overlay { display: none; position: fixed; inset: 0; background: rgba(0,0,0,0.6); z-index: 300; }
   .archive-overlay.open { display: block; }
   .archive-panel { position: absolute; bottom: 0; left: 0; right: 0; background: var(--surface); border-top: 1px solid var(--bordhi); border-radius: 12px 12px 0 0; max-height: 72vh; display: flex; flex-direction: column; }
@@ -748,6 +903,7 @@
   }
 </style>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
 </head>
 <body>
 
@@ -785,18 +941,10 @@
 
     <div class="s-section">
       <div class="s-title">Lanes</div>
-      <div class="s-row" style="gap:8px">
-        <div class="lane-dot-swatch" id="swatchNow" style="background:#E8400C;"><input type="color" value="#E8400C" oninput="setLaneDot('now',this.value,this)"></div>
-        <input class="lane-name-input" type="text" value="Now" placeholder="Now" oninput="setLaneName('now',this.value)">
-      </div>
-      <div class="s-row" style="gap:8px">
-        <div class="lane-dot-swatch" id="swatchSoon" style="background:#C47D0E;"><input type="color" value="#C47D0E" oninput="setLaneDot('soon',this.value,this)"></div>
-        <input class="lane-name-input" type="text" value="Soon" placeholder="Soon" oninput="setLaneName('soon',this.value)">
-      </div>
-      <div class="s-row" style="gap:8px">
-        <div class="lane-dot-swatch" id="swatchLater" style="background:#1A6B3C;"><input type="color" value="#1A6B3C" oninput="setLaneDot('later',this.value,this)"></div>
-        <input class="lane-name-input" type="text" value="Later" placeholder="Later" oninput="setLaneName('later',this.value)">
-      </div>
+      <div id="laneSettingsRows"></div>
+      <button id="addLaneBtn" onclick="addLane()"
+        style="background:none;border:none;cursor:pointer;font-family:'DM Mono',monospace;font-size:0.58rem;color:var(--dim);padding:4px 0 0 0;display:block;">+</button>
+      <div class="s-hint" id="laneCountHint">3 of 10</div>
     </div>
 
     <div class="s-section">
@@ -929,12 +1077,15 @@
     </div>
   </div>
   <div class="header-right">
+    <div class="sync-indicator" id="syncDot"></div>
+    <button class="sync-btn" id="syncBtn" onclick="onSyncBtn()">sign in</button>
+    <div class="h-divider"></div>
     <div class="cups-row" id="cupsRow"></div>
     <div class="h-divider"></div>
-    <div class="header-stats">
-      <div><strong id="hNow">0</strong> <span id="hLabelNow">now</span></div>
-      <div><strong id="hSoon">0</strong> <span id="hLabelSoon">soon</span></div>
-      <div><strong id="hLater">0</strong> <span id="hLabelLater">later</span></div>
+    <div class="header-stats" id="headerStats">
+      <div><strong id="hStat-now">0</strong> <span>now</span></div>
+      <div><strong id="hStat-soon">0</strong> <span>soon</span></div>
+      <div><strong id="hStat-later">0</strong> <span>later</span></div>
       <div id="hDoneWrap" style="display:none"><strong id="hDone">0</strong> done</div>
     </div>
   </div>
@@ -957,15 +1108,11 @@
         </button>
         <input type="datetime-local" id="dueNative" tabindex="-1" onchange="onNativePick(this.value)" />
       </div>
-      <div class="priority-group">
-        <button class="p-btn sel-now"  data-p="now"   onclick="selectP('now')">Now</button>
-        <button class="p-btn"          data-p="soon"  onclick="selectP('soon')">Soon</button>
-        <button class="p-btn"          data-p="later" onclick="selectP('later')">Later</button>
-      </div>
+      <div class="priority-group" id="priorityGroup"></div>
       <button class="add-btn" onclick="handleAdd()">+ Add</button>
     </div>
     <div class="kb-hint">
-      <kbd>Enter</kbd> add &nbsp;·&nbsp; <kbd>1</kbd> now &nbsp;·&nbsp; <kbd>2</kbd> soon &nbsp;·&nbsp; <kbd>3</kbd> later
+      <kbd>Enter</kbd> add &nbsp;·&nbsp; <kbd>Cmd+1</kbd>–<kbd>9</kbd> priority &nbsp;·&nbsp; <kbd>Cmd+0</kbd> lane 10
       &nbsp;·&nbsp; due: <kbd>fri 3pm</kbd> <kbd>tomorrow am</kbd> <kbd>eod</kbd>
       &nbsp;·&nbsp; empty + <kbd>Enter</kbd> → paste import &nbsp;·&nbsp; double-click task field to share
     </div>
@@ -1019,34 +1166,10 @@
   </div>
 </div>
 
-<main>
-  <div class="lane lane-now" id="lane-now">
-    <div class="lane-header">
-      <div class="lane-dot" id="dot-now" style="background:var(--now)"></div>
-      <div class="lane-title" id="title-now" onclick="startLaneEdit('now')">Now</div>
-      <div class="lane-count" id="cnt-now">0</div>
-    </div>
-    <div class="task-list" id="list-now" data-lane="now"></div>
-  </div>
-  <div class="lane lane-soon" id="lane-soon">
-    <div class="lane-header">
-      <div class="lane-dot" id="dot-soon" style="background:var(--soon)"></div>
-      <div class="lane-title" id="title-soon" onclick="startLaneEdit('soon')">Soon</div>
-      <div class="lane-count" id="cnt-soon">0</div>
-    </div>
-    <div class="task-list" id="list-soon" data-lane="soon"></div>
-  </div>
-  <div class="lane lane-later" id="lane-later">
-    <div class="lane-header">
-      <div class="lane-dot" id="dot-later" style="background:var(--later)"></div>
-      <div class="lane-title" id="title-later" onclick="startLaneEdit('later')">Later</div>
-      <div class="lane-count" id="cnt-later">0</div>
-    </div>
-    <div class="task-list" id="list-later" data-lane="later"></div>
-  </div>
-</main>
+<main id="boardMain" ondblclick="handleBoardDblClick(event)"></main>
 
 <footer>
+  <div class="board-tab-bar" id="boardTabBar"></div>
   <div style="display:flex;align-items:center;border-bottom:1px solid var(--border);">
     <button class="done-toggle" id="doneToggle" onclick="toggleDone()" style="display:none;flex:1;">
       <span class="arr">▶</span>
@@ -1067,6 +1190,42 @@
 </footer>
 
 <!-- Archive overlay -->
+<div class="auth-overlay" id="authOverlay">
+  <div class="auth-panel">
+    <div class="auth-title">Task.Flow</div>
+    <div class="auth-sub" id="authSub">sign in to sync across devices</div>
+    <input class="auth-input" id="authEmail" type="email" placeholder="email" autocomplete="email">
+    <input class="auth-input" id="authPassword" type="password" placeholder="password"
+      onkeydown="if(event.key==='Enter')doAuth()">
+    <div class="auth-err" id="authErr"></div>
+    <div class="auth-msg" id="authMsg"></div>
+    <button class="auth-btn" id="authBtn" onclick="doAuth()">Sign in</button>
+    <div class="auth-toggle" id="authToggle">No account? <span onclick="toggleAuthMode()">Create one</span></div>
+  </div>
+</div>
+<input type="file" id="attInput" style="display:none"
+  accept=".jpg,.jpeg,.png,.gif,.webp,.svg,.pdf,.docx,.xlsx,.pptx"
+  onchange="handleAttUpload(event)">
+<div class="qc-overlay" id="qcOverlay" onclick="if(event.target===this)closeQC()">
+  <div class="qc-panel">
+    <div class="qc-title">Quick Capture</div>
+    <input class="qc-task-input" id="qcTaskInput" placeholder="What needs doing?" autocomplete="off">
+    <div class="qc-due-wrap">
+      <input class="qc-due-input" id="qcDueInput" placeholder="due date… fri 3pm · eod · tomorrow am" autocomplete="off" oninput="onQcDue(this.value)">
+      <span class="qc-due-parsed" id="qcDueParsed"></span>
+    </div>
+    <div class="qc-priority-group" id="qcPriorityGroup"></div>
+    <button class="qc-notes-toggle" id="qcNotesToggle" onclick="toggleQcNotes()">+ add notes</button>
+    <textarea class="qc-notes" id="qcNotes" placeholder="Context, links, follow-ups…"></textarea>
+    <div class="qc-footer">
+      <button class="qc-add-btn" onclick="qcAdd()">+ Add task</button>
+      <span class="qc-esc-hint">Esc to close</span>
+      <label class="qc-another">
+        <input type="checkbox" id="qcAnother" onchange="document.getElementById('qcTaskInput').focus()"> add another
+      </label>
+    </div>
+  </div>
+</div>
 <div class="archive-overlay" id="archiveOverlay" onclick="if(event.target===document.getElementById('archiveOverlay'))closeArchive()">
   <div class="archive-panel" onclick="event.stopPropagation()">
     <div class="archive-hd">
@@ -1104,6 +1263,7 @@ let settings = load('tf-settings', {
   accent: '#8B2A10',
   laneDots:  ['#E8400C','#C47D0E','#1A6B3C'],
   laneNames: ['Now','Soon','Later'],
+  lanes: null,
   tagline: 'what are we even doing here?',
   userName: '',
   maxCups: 10,
@@ -1114,6 +1274,16 @@ let settings = load('tf-settings', {
   celSound: 1,
   celVol: 0.7
 });
+
+// ── Migrate to dynamic lanes ──────────────────────────
+(function migrateLanes() {
+  if (!settings.lanes) {
+    const dots  = settings.laneDots  || ['#E8400C','#C47D0E','#1A6B3C'];
+    const names = settings.laneNames || ['Now','Soon','Later'];
+    const ids   = ['now','soon','later'];
+    settings.lanes = ids.map((id, i) => ({ id, name: names[i] || id, color: dots[i] || '#888' }));
+  }
+})();
 let selP     = 'now';
 let doneOpen = false;
 let pendingDue = null;
@@ -1125,11 +1295,7 @@ const MAGIC = 'what are we even doing here?';
 function load(k, def) {
   try { const v = localStorage.getItem(k); return v ? JSON.parse(v) : def; } catch { return def; }
 }
-function save() {
-  localStorage.setItem('tf-tasks',    JSON.stringify(tasks));
-  localStorage.setItem('tf-done',     JSON.stringify(done));
-  localStorage.setItem('tf-settings', JSON.stringify(settings));
-}
+function save() { saveBoard(); }
 
 // ── Settings ───────────────────────────────────────────────
 function toggleSettings()      { document.getElementById('settingsOverlay').classList.toggle('open'); }
@@ -1194,6 +1360,7 @@ function setAccent(c) {
   document.querySelectorAll('input[type=range]').forEach(r => r.style.accentColor = c);
   document.documentElement.style.setProperty('--accent', c);
   save();
+  if (typeof syncBoardAccent === 'function') syncBoardAccent();
 }
 
 function setLaneDot(lane, c, input) {
@@ -1294,23 +1461,9 @@ function setMaxCups(n) {
 function applySettings() {
   // accent
   setAccent(settings.accent);
-  // lane dots
-  ['now','soon','later'].forEach((l,i) => {
-    document.getElementById('dot-' + l).style.background = settings.laneDots[i];
-    const swatch = document.getElementById('swatch' + l.charAt(0).toUpperCase() + l.slice(1));
-    if (swatch) swatch.style.background = settings.laneDots[i];
-  });
-  // lane names
-  ['now','soon','later'].forEach((l,i) => {
-    const name = settings.laneNames[i] || ['Now','Soon','Later'][i];
-    document.getElementById('title-' + l).textContent = name;
-    document.getElementById('hLabel' + l.charAt(0).toUpperCase() + l.slice(1)).textContent = name.toLowerCase();
-    const inp = document.querySelector(`.lane-name-input[value]:nth-of-type(${i+1})`);
-  });
-  // restore lane name inputs
-  document.querySelectorAll('.lane-name-input').forEach((inp, i) => {
-    inp.value = settings.laneNames[i] || ['Now','Soon','Later'][i];
-  });
+  renderBoard();
+  renderLaneSettings();
+  renderPriorityButtons();
   // tagline
   document.getElementById('taglineInput').value = settings.tagline;
   setTagline(settings.tagline);
@@ -1328,12 +1481,15 @@ function applySettings() {
   applySoundToggle();
   applyCelToggle();
   renderCelPicker();
+  renderPriorityButtons();
 }
 
 // ── Coffee cup stress meter ────────────────────────────────
 function cupCount() {
-  const nowCount  = tasks.filter(t => t.priority === 'now').length;
-  const soonCount = tasks.filter(t => t.priority === 'soon').length;
+  const l0 = settings.lanes && settings.lanes[0] ? settings.lanes[0].id : 'now';
+  const l1 = settings.lanes && settings.lanes[1] ? settings.lanes[1].id : 'soon';
+  const nowCount  = tasks.filter(t => t.priority === l0).length;
+  const soonCount = tasks.filter(t => t.priority === l1).length;
   const raw = nowCount + soonCount / 2;
   return Math.min(raw, settings.maxCups);
 }
@@ -1392,9 +1548,8 @@ function renderCups() {
 // ── Priority selector ──────────────────────────────────────
 function selectP(p) {
   selP = p;
-  document.querySelectorAll('.p-btn').forEach(b => {
-    b.className = 'p-btn' + (b.dataset.p === p ? ' sel-' + p : '');
-  });
+  renderPriorityButtons();
+  if (document.getElementById('qcOverlay').classList.contains('open')) renderQcPriority();
 }
 
 // ── NLP Date Parser (custom vocabulary) ───────────────────
@@ -1828,6 +1983,11 @@ function undo() {
   if (type === 'delete') { tasks.splice(data.idx, 0, data.task); }
   else if (type === 'complete') { done = done.filter(t => t.id !== data.task.id); tasks.splice(data.idx, 0, data.task); }
   else if (type === 'move') { const i = tasks.findIndex(t => t.id === data.id); if (i >= 0) { tasks[i].priority = data.from; } }
+  else if (type === 'removeLane') {
+    settings.lanes.splice(data.idx, 0, data.lane);
+    data.tasksInLane.forEach(t => { const existing = tasks.find(et => et.id === t.id); if (existing) existing.priority = data.lane.id; });
+    renderBoard(); renderLaneSettings();
+  }
   save(); render();
   playClick('add');
   showToast('undone', 'var(--later)');
@@ -1884,7 +2044,205 @@ function deleteForever(id) {
 
 // ── Archive ──
 let archive = JSON.parse(localStorage.getItem('tf_archive') || '[]');
-function saveArchive() { localStorage.setItem('tf_archive', JSON.stringify(archive)); }
+function saveArchive() {
+  const id = typeof activeBoardId !== 'undefined' ? activeBoardId : null;
+  if (id) localStorage.setItem('tf-board-' + id + '-archive', JSON.stringify(archive));
+  else localStorage.setItem('tf_archive', JSON.stringify(archive));
+}
+
+// ── Multiple boards ────────────────────────────────────────
+let boards = load('tf-boards', null);
+let activeBoardId = localStorage.getItem('tf-active-board') || null;
+
+(function migrateBoards() {
+  if (!boards) {
+    const boardId = 'board-init';
+    // Migrate existing data — copy current localStorage keys to board-scoped keys
+    localStorage.setItem('tf-board-' + boardId + '-tasks',    localStorage.getItem('tf-tasks')    || '[]');
+    localStorage.setItem('tf-board-' + boardId + '-done',     localStorage.getItem('tf-done')     || '[]');
+    localStorage.setItem('tf-board-' + boardId + '-settings', localStorage.getItem('tf-settings') || '{}');
+    localStorage.setItem('tf-board-' + boardId + '-archive',  localStorage.getItem('tf_archive')  || '[]');
+    boards = [{ id: boardId, name: 'My Board', accent: '#8B2A10' }];
+    localStorage.setItem('tf-boards', JSON.stringify(boards));
+    activeBoardId = boardId;
+    localStorage.setItem('tf-active-board', activeBoardId);
+  }
+  if (!activeBoardId || !boards.find(b => b.id === activeBoardId)) {
+    activeBoardId = boards[0].id;
+    localStorage.setItem('tf-active-board', activeBoardId);
+  }
+})();
+
+const DEFAULT_BOARD_SETTINGS = {
+  accent:'#8B2A10', laneDots:['#E8400C','#C47D0E','#1A6B3C'],
+  laneNames:['Now','Soon','Later'], lanes:null,
+  tagline:'what are we even doing here?', userName:'', maxCups:10,
+  apiKey:'', sounds:false, celOn:true, celColor:'#EF9F27', celSound:1, celVol:0.7
+};
+
+function loadBoard(id) {
+  tasks    = load('tf-board-' + id + '-tasks',    []);
+  done     = load('tf-board-' + id + '-done',     []);
+  const savedSettings = load('tf-board-' + id + '-settings', {});
+  settings = { ...DEFAULT_BOARD_SETTINGS, ...savedSettings };
+  if (!settings.lanes) {
+    const dots  = settings.laneDots  || ['#E8400C','#C47D0E','#1A6B3C'];
+    const names = settings.laneNames || ['Now','Soon','Later'];
+    const ids   = ['now','soon','later'];
+    settings.lanes = ids.map((lid, i) => ({ id: lid, name: names[i] || lid, color: dots[i] || '#888' }));
+  }
+  archive  = load('tf-board-' + id + '-archive',  []);
+  selP     = settings.lanes[0] ? settings.lanes[0].id : 'now';
+  doneOpen = false;
+  openNotes.clear();
+}
+
+function saveBoard() {
+  if (!activeBoardId) return;
+  // Strip apiKey before saving to cloud (stays local only)
+  const settingsForCloud = Object.assign({}, settings);
+  delete settingsForCloud.apiKey;
+  localStorage.setItem('tf-board-' + activeBoardId + '-tasks',    JSON.stringify(tasks));
+  localStorage.setItem('tf-board-' + activeBoardId + '-done',     JSON.stringify(done));
+  localStorage.setItem('tf-board-' + activeBoardId + '-settings', JSON.stringify(settings));
+  localStorage.setItem('tf-board-' + activeBoardId + '-archive',  JSON.stringify(archive));
+  localStorage.setItem('tf-boards', JSON.stringify(boards));
+  cloudSave();
+}
+
+function switchBoard(id) {
+  if (id === activeBoardId) return;
+  saveBoard();
+  activeBoardId = id;
+  localStorage.setItem('tf-active-board', activeBoardId);
+  loadBoard(id);
+  applySettings();
+  render();
+  renderBoardTabs();
+}
+
+function addBoard() {
+  if (boards.length >= 10) return;
+  const id = 'board-' + Date.now();
+  boards.push({ id, name: 'New Board', accent: '#8B2A10' });
+  localStorage.setItem('tf-board-' + id + '-tasks',    '[]');
+  localStorage.setItem('tf-board-' + id + '-done',     '[]');
+  localStorage.setItem('tf-board-' + id + '-settings', '{}');
+  localStorage.setItem('tf-board-' + id + '-archive',  '[]');
+  switchBoard(id);
+}
+
+function deleteBoard(id) {
+  if (boards.length <= 1) return;
+  if (!confirm('Delete this board and all its tasks? This cannot be undone.')) return;
+  boards = boards.filter(b => b.id !== id);
+  ['tasks','done','settings','archive'].forEach(k => localStorage.removeItem('tf-board-' + id + '-' + k));
+  if (activeBoardId === id) {
+    activeBoardId = boards[0].id;
+    localStorage.setItem('tf-active-board', activeBoardId);
+    loadBoard(activeBoardId);
+    applySettings();
+    render();
+  }
+  localStorage.setItem('tf-boards', JSON.stringify(boards));
+  renderBoardTabs();
+}
+
+let renamingBoard = null;
+let boardDragSrc  = null;
+
+function hexToRgbaBoard(hex, a) {
+  hex = hex || '#8B2A10';
+  const r=parseInt(hex.slice(1,3),16), g=parseInt(hex.slice(3,5),16), b=parseInt(hex.slice(5,7),16);
+  return `rgba(${r},${g},${b},${a})`;
+}
+
+function renderBoardTabs() {
+  const bar = document.getElementById('boardTabBar');
+  if (!bar) return;
+  bar.innerHTML = boards.map(b => {
+    const isActive  = b.id === activeBoardId;
+    const isRename  = renamingBoard === b.id;
+    const hasAlert  = !isActive && checkBoardAlert(b.id);
+    const bg = isActive ? hexToRgbaBoard(b.accent, 0.15) : 'transparent';
+    const bc = isActive ? hexToRgbaBoard(b.accent, 0.6)  : hexToRgbaBoard(b.accent, 0.35);
+    const glow = isActive
+      ? `box-shadow:0 0 8px 2px ${hexToRgbaBoard(b.accent, 0.4)};`
+      : `box-shadow:0 0 5px 1px ${hexToRgbaBoard(b.accent, 0.25)};`;
+    return `<div class="btab${isActive?' active':''}${hasAlert?' tab-alert':''}"
+      id="btab-${b.id}"
+      style="background:${bg};border-color:${bc};${glow}"
+      onclick="switchBoard('${b.id}')"
+      ondblclick="startBoardRename('${b.id}')"
+      draggable="true"
+      ondragstart="onBoardDragStart(event,'${b.id}')"
+      ondragover="onBoardDragOver(event,'${b.id}')"
+      ondragleave="onBoardDragLeave(event,'${b.id}')"
+      ondrop="onBoardDrop(event,'${b.id}')"
+      ondragend="onBoardDragEnd()">
+      ${isRename
+        ? `<input class="btab-rename" id="bren-${b.id}" value="${esc(b.name)}"
+            onblur="finishBoardRename('${b.id}')"
+            onkeydown="if(event.key==='Enter')finishBoardRename('${b.id}');if(event.key==='Escape'){renamingBoard=null;renderBoardTabs();}"
+            onclick="event.stopPropagation()">`
+        : `<span class="btab-name">${esc(b.name)}</span>`}
+      ${boards.length > 1 ? `<span class="btab-close" onclick="event.stopPropagation();deleteBoard('${b.id}')">✕</span>` : ''}
+    </div>`;
+  }).join('');
+  if (boards.length < 10) bar.innerHTML += `<span class="btab-add" onclick="addBoard()">+</span>`;
+  if (renamingBoard) setTimeout(() => { const inp = document.getElementById('bren-'+renamingBoard); if(inp){inp.focus();inp.select();} }, 20);
+}
+
+function startBoardRename(id) { renamingBoard = id; renderBoardTabs(); }
+function finishBoardRename(id) {
+  const inp = document.getElementById('bren-' + id);
+  if (inp) { const b = boards.find(b=>b.id===id); if(b && inp.value.trim()) b.name = inp.value.trim(); }
+  renamingBoard = null;
+  localStorage.setItem('tf-boards', JSON.stringify(boards));
+  renderBoardTabs();
+}
+
+function checkBoardAlert(id) {
+  const bt = load('tf-board-' + id + '-tasks', []);
+  return bt.some(t => t.due && t.due < Date.now());
+}
+
+function syncBoardAccent() {
+  const b = boards.find(b => b.id === activeBoardId);
+  if (b && settings.accent) { b.accent = settings.accent; localStorage.setItem('tf-boards', JSON.stringify(boards)); renderBoardTabs(); }
+}
+
+function onBoardDragStart(e, id) {
+  boardDragSrc = id; e.dataTransfer.effectAllowed = 'move';
+  setTimeout(() => { const el = document.getElementById('btab-'+id); if(el) el.style.opacity='0.35'; }, 0);
+}
+function onBoardDragOver(e, id) {
+  e.preventDefault(); if(id===boardDragSrc) return;
+  const el=document.getElementById('btab-'+id); if(!el) return;
+  const rect=el.getBoundingClientRect();
+  el.style.borderLeft  = e.clientX < rect.left+rect.width/2 ? '2px solid var(--text)' : '';
+  el.style.borderRight = e.clientX >= rect.left+rect.width/2 ? '2px solid var(--text)' : '';
+}
+function onBoardDragLeave(e, id) {
+  const el=document.getElementById('btab-'+id); if(el){el.style.borderLeft='';el.style.borderRight='';}
+}
+function onBoardDrop(e, targetId) {
+  e.preventDefault(); if(!boardDragSrc||boardDragSrc===targetId) return;
+  const el=document.getElementById('btab-'+targetId);
+  const rect=el?el.getBoundingClientRect():null;
+  const before=rect&&e.clientX<rect.left+rect.width/2;
+  const srcIdx=boards.findIndex(b=>b.id===boardDragSrc);
+  const [moved]=boards.splice(srcIdx,1);
+  const tgtIdx=boards.findIndex(b=>b.id===targetId);
+  boards.splice(before?tgtIdx:tgtIdx+1,0,moved);
+  boardDragSrc=null;
+  localStorage.setItem('tf-boards',JSON.stringify(boards));
+  renderBoardTabs();
+}
+function onBoardDragEnd() {
+  boardDragSrc=null;
+  document.querySelectorAll('.btab').forEach(el=>{el.style.opacity='';el.style.borderLeft='';el.style.borderRight='';});
+}
 
 function sweepToArchive() {
   if (!done.length) return;
@@ -2117,7 +2475,16 @@ async function shareBoard() {
   inp.classList.add('share-flash');
   setTimeout(() => inp.classList.remove('share-flash'), 600);
 
-  const state = { tasks, done, settings };
+  const allBoardData = {};
+  boards.forEach(b => {
+    allBoardData[b.id] = {
+      tasks:    load('tf-board-' + b.id + '-tasks',    []),
+      done:     load('tf-board-' + b.id + '-done',     []),
+      settings: load('tf-board-' + b.id + '-settings', {}),
+      archive:  load('tf-board-' + b.id + '-archive',  []),
+    };
+  });
+  const state = { boards, activeBoardId, allBoardData };
   try {
     const json    = JSON.stringify(state);
     const encoded = await compressToBase64(json);
@@ -2173,10 +2540,23 @@ async function loadFromURL() {
   try {
     const json   = await decompressFromBase64(s);
     const state  = JSON.parse(json);
-    if (state.tasks)    tasks    = state.tasks;
-    if (state.done)     done     = state.done;
-    if (state.settings) settings = { ...settings, ...state.settings };
-    save();
+    if (state.boards && state.allBoardData) {
+      boards = state.boards;
+      activeBoardId = state.activeBoardId || state.boards[0].id;
+      Object.entries(state.allBoardData).forEach(([id, data]) => {
+        localStorage.setItem('tf-board-' + id + '-tasks',    JSON.stringify(data.tasks    || []));
+        localStorage.setItem('tf-board-' + id + '-done',     JSON.stringify(data.done     || []));
+        localStorage.setItem('tf-board-' + id + '-settings', JSON.stringify(data.settings || {}));
+        localStorage.setItem('tf-board-' + id + '-archive',  JSON.stringify(data.archive  || []));
+      });
+      localStorage.setItem('tf-boards', JSON.stringify(boards));
+      localStorage.setItem('tf-active-board', activeBoardId);
+    } else {
+      if (state.tasks)    tasks    = state.tasks;
+      if (state.done)     done     = state.done;
+      if (state.settings) settings = { ...DEFAULT_BOARD_SETTINGS, ...state.settings };
+      save();
+    }
     showToast('board loaded from share link', true);
   } catch(e) {
     showToast('could not load share link', false);
@@ -2215,20 +2595,140 @@ function autosize(ta) {
 }
 
 // ── Render ─────────────────────────────────────────────────
+
+function renderPriorityButtons() {
+  const pg = document.getElementById('priorityGroup');
+  if (!pg || !settings.lanes) return;
+  pg.innerHTML = settings.lanes.map((lane, i) => {
+    const isActive = selP === lane.id;
+    const col = lane.color || '#888';
+    const r=parseInt(col.slice(1,3),16), g=parseInt(col.slice(3,5),16), b=parseInt(col.slice(5,7),16);
+    return `<button class="p-btn${isActive?' active':''}" data-p="${lane.id}"
+      style="${isActive?`background:rgba(${r},${g},${b},1);`:''}"
+      onclick="selectP('${lane.id}')">${esc(lane.name)}</button>`;
+  }).join('');
+  if (!settings.lanes.find(l => l.id === selP) && settings.lanes.length > 0) selP = settings.lanes[0].id;
+}
+
+function renderHeaderStats() {
+  const statsEl = document.getElementById('headerStats');
+  if (!statsEl || !settings.lanes) return;
+  statsEl.innerHTML = settings.lanes.map(lane => {
+    const count = tasks.filter(t => t.priority === lane.id).length;
+    return `<div><strong id="hStat-${lane.id}">${count}</strong> <span>${esc(lane.name.toLowerCase())}</span></div>`;
+  }).join('') + `<div id="hDoneWrap" style="display:${done.length?'block':'none'}"><strong id="hDone">${done.length}</strong> done</div>`;
+}
+
+function renderBoard() {
+  const main = document.getElementById('boardMain');
+  if (!main || !settings.lanes) return;
+  main.style.gridTemplateColumns = '';
+  const laneWidths = settings.laneWidths || {};
+  main.innerHTML = settings.lanes.map(lane => `
+    <div class="lane" id="lane-${lane.id}" style="${laneWidths[lane.id]?`flex:0 0 ${laneWidths[lane.id]}px;`:''}">
+      <div class="lane-header" id="lhd-${lane.id}"
+        onclick="onLaneHeaderFocusClick('${lane.id}')"
+        ondblclick="onLaneHeaderDblClick('${lane.id}',event)">
+        <div class="lane-dot" id="dot-${lane.id}" style="background:${lane.color}"></div>
+        <div class="lane-title" id="title-${lane.id}" onclick="startLaneEdit('${lane.id}')">${esc(lane.name)}</div>
+        <div class="lane-count" id="cnt-${lane.id}">0</div>
+        <button class="focus-eye-btn${focusLane===lane.id?' active':''}" id="feye-${lane.id}"
+          onclick="event.stopPropagation();onFocusEyeClick('${lane.id}')" title="Focus this lane">
+          <svg viewBox="0 0 14 10" fill="none" xmlns="http://www.w3.org/2000/svg">
+            <path d="M1 5C1 5 3 1 7 1C11 1 13 5 13 5C13 5 11 9 7 9C3 9 1 5 1 5Z" stroke-width="1.1" stroke-linecap="round" stroke-linejoin="round"/>
+            <circle cx="7" cy="5" r="1.8" stroke-width="1.1"/>
+          </svg>
+        </button>
+        ${settings.lanes.length > 1 ? `<button class="lane-del-btn" onclick="removeLane('${lane.id}')" title="Remove lane">✕</button>` : ''}
+      </div>
+      <div class="task-list" id="list-${lane.id}" data-lane="${lane.id}"></div>
+      <div class="lane-resize-handle" data-lane-id="${lane.id}"></div>
+    </div>`).join('');
+  settings.lanes.forEach(lane => {
+    const list = document.getElementById('list-' + lane.id);
+    if (list) initDropZone(list);
+  });
+  renderHeaderStats();
+  renderPriorityButtons();
+  initResizeHandles();
+}
+
+function renderLaneSettings() {
+  const rows = document.getElementById('laneSettingsRows');
+  if (!rows || !settings.lanes) return;
+  rows.innerHTML = settings.lanes.map(lane => `
+    <div class="s-row" style="gap:8px;margin-bottom:6px;" id="lrow-${lane.id}">
+      <div class="lane-dot-swatch" id="swatch-${lane.id}" style="background:${lane.color};">
+        <input type="color" value="${lane.color}" oninput="updateLaneColor('${lane.id}',this.value)">
+      </div>
+      <input class="lane-name-input" type="text" value="${esc(lane.name)}" oninput="updateLaneName('${lane.id}',this.value)">
+      <button onclick="removeLane('${lane.id}')"
+        style="background:none;border:none;cursor:pointer;font-family:'DM Mono',monospace;font-size:0.58rem;color:var(--dim);padding:0;line-height:1;">−</button>
+    </div>`).join('');
+  const addBtn = document.getElementById('addLaneBtn');
+  if (addBtn) addBtn.disabled = settings.lanes.length >= 10;
+  const hint = document.getElementById('laneCountHint');
+  if (hint) hint.textContent = settings.lanes.length + ' of 10';
+}
+
+const LANE_COLORS = ['#E8400C','#C47D0E','#1A6B3C','#534AB7','#0F6E56','#854F0B','#A32D2D','#185FA5','#3B6D11','#791F1F'];
+
+function updateLaneColor(id, color) {
+  const lane = settings.lanes.find(l => l.id === id); if (!lane) return;
+  lane.color = color;
+  const dot = document.getElementById('dot-' + id); if (dot) dot.style.background = color;
+  const sw  = document.getElementById('swatch-' + id); if (sw) sw.style.background = color;
+  save();
+}
+
+function updateLaneName(id, name) {
+  const lane = settings.lanes.find(l => l.id === id); if (!lane) return;
+  lane.name = name;
+  const title = document.getElementById('title-' + id); if (title) title.textContent = name;
+  renderHeaderStats(); renderPriorityButtons();
+  save();
+}
+
+function addLane() {
+  if (settings.lanes.length >= 10) return;
+  const id = 'lane-' + Date.now();
+  const color = LANE_COLORS[settings.lanes.length % LANE_COLORS.length];
+  settings.lanes.push({ id, name: 'Lane ' + (settings.lanes.length + 1), color });
+  save(); renderBoard(); renderLaneSettings(); render();
+  setTimeout(() => { const ins = document.querySelectorAll('#laneSettingsRows .lane-name-input'); if(ins.length) ins[ins.length-1].select(); }, 40);
+}
+
+function removeLane(id) {
+  const idx = settings.lanes.findIndex(l => l.id === id); if (idx < 0) return;
+  const removed = settings.lanes[idx];
+  pushUndo('removeLane', { lane: {...removed}, idx, tasksInLane: tasks.filter(t => t.priority === id).map(t => ({...t})) });
+  settings.lanes.splice(idx, 1);
+  if (settings.lanes.length > 0) {
+    const firstId = settings.lanes[0].id;
+    tasks.forEach(t => { if (t.priority === id) t.priority = firstId; });
+  }
+  if (selP === id && settings.lanes.length > 0) selP = settings.lanes[0].id;
+  save(); renderBoard(); renderLaneSettings(); render();
+}
+
 function render() {
-  ['now','soon','later'].forEach(p => {
+  if (!settings.lanes) return;
+  settings.lanes.forEach(lane => {
+    const p     = lane.id;
     const items = tasks.filter(t => t.priority === p);
     const list  = document.getElementById('list-' + p);
     const cnt   = document.getElementById('cnt-' + p);
-    document.getElementById('h' + p.charAt(0).toUpperCase() + p.slice(1)).textContent = items.length;
-    cnt.textContent = items.length;
+    if (!list) return;
+    if (cnt) cnt.textContent = items.length;
+    const hEl = document.getElementById('hStat-' + p);
+    if (hEl) hEl.textContent = items.length;
 
     if (items.length === 0) {
       list.innerHTML = `<div class="empty-state">
         <div class="empty-line"></div>
         <div class="empty-line" style="width:26px"></div>
         <div class="empty-line" style="width:32px"></div>
-        <p>${p==='now'?'urgent tasks':p==='soon'?"today's queue":'backlog'}</p>
+        <p>${lane.name.toLowerCase()} tasks</p>
       </div>`;
       initDropZone(list);
       return;
@@ -2247,12 +2747,15 @@ function render() {
       const isEditing = editingId === t.id;
       const curDueStr = t.due ? fmtParsed(t.due).replace('→ ','') : '';
       return `
-      <div class="task-card ${isEditing ? 'editing' : ''} ${t.due && t.due < Date.now() ? 'overdue' : ''}" id="card-${t.id}" draggable="true" data-id="${t.id}">
+      <div class="task-card ${isEditing ? 'editing' : ''} ${t.due && t.due < Date.now() ? 'overdue' : ''}" id="card-${t.id}" data-id="${t.id}"
+        style="${t.cardHeight ? `min-height:${t.cardHeight}px;` : ''}">
         <div class="card-main">
-          <div class="drag-handle" title="Drag to reprioritize">⠿</div>
+          <div class="drag-handle" draggable="true" data-id="${t.id}" title="Drag to reprioritize">⠿</div>
           <button class="check-btn" onclick="complete(${t.id})" title="Mark done"></button>
           <div class="card-body">
-            <div class="task-text ${t._expanded ? 'expanded' : 'clamped-active'}" onclick="toggleTextExpand(${t.id}, event)">${esc(t.text)}</div>
+            <div class="task-text ${t._expanded ? 'expanded' : 'clamped-active'}"
+              style="${t.cardHeight && !t._expanded ? `-webkit-line-clamp:${Math.max(2,Math.floor((t.cardHeight-58)/19.6))};` : ''}"
+              onclick="toggleTextExpand(${t.id}, event)">${esc(t.text)}</div>
             <div class="card-meta">
               <button class="note-toggle-btn ${hasNote?'has-note':''}" id="ntbtn-${t.id}" onclick="toggleNote(${t.id})">${esc(btnLabel)}</button>
               ${dl ? `<span class="due-tag ${dl.cls}">${dl.label}</span>` : ''}
@@ -2260,10 +2763,28 @@ function render() {
             </div>
           </div>
           <div class="card-actions">
+            <button class="st-btn ${t.subtasks&&t.subtasks.length?'has-st':''}" onclick="toggleSTP(${t.id},event)" title="Sub-tasks">
+              <svg viewBox="0 0 10 10" fill="none" stroke="currentColor" stroke-width="1.3" stroke-linecap="round"><line x1="2" y1="5" x2="8" y2="5"/><line x1="5" y1="2" x2="5" y2="8"/></svg>
+            </button>
             <button class="edit-btn" onclick="toggleEdit(${t.id})" title="Edit task">✎</button>
             <button class="del-btn" onclick="del(${t.id})" title="Delete">✕</button>
           </div>
         </div>
+        ${(()=>{
+          if (!t.subtasks||!t.subtasks.length) return '';
+          const isCollapsed = stCollapsed.has(t.id);
+          const done = t.subtasks.filter(s=>s.checked).length;
+          return `<div class="st-section" id="sts-${t.id}">
+            <div class="st-header">
+              <span class="st-progress">${done} / ${t.subtasks.length}</span>
+              <button class="st-collapse" onclick="toggleSTCollapse(${t.id},event)" id="stc-${t.id}">${isCollapsed?'▾':'▴'}</button>
+            </div>
+            <div class="st-list" id="stl-${t.id}" style="display:${isCollapsed?'none':'flex'};flex-direction:column;gap:3px;">
+              ${t.subtasks.map(s=>'<div class="st-item"><div class="st-box '+(s.checked?'checked':'')+'" onclick="toggleST('+t.id+','+s.id+')"></div><span class="st-text '+(s.checked?'done':'')+'">'+esc(s.text)+'</span><button class="st-del" onclick="deleteST('+t.id+','+s.id+')">✕</button></div>').join('')}
+            </div>
+          </div>`;
+        })()}
+        <div class="card-resize-handle" data-card-id="${t.id}"></div>
         <div class="note-panel-anchor" id="anchor-${t.id}"></div>
         <div class="edit-panel ${isEditing ? 'open' : ''}" id="ep-${t.id}">
           <div class="edit-inner">
@@ -2305,13 +2826,16 @@ function render() {
     initDrag(list);
     initDropZone(list);
   });
+  // Re-init card resize handles after cards are built
+  initResizeHandles();
 
   // Done section
   const doneToggle = document.getElementById('doneToggle');
   const doneLbl    = document.getElementById('doneLbl');
   const doneList   = document.getElementById('doneList');
   document.getElementById('hDone').textContent = done.length;
-  document.getElementById('hDoneWrap').style.display = done.length ? 'block' : 'none';
+  const hDoneWrap = document.getElementById('hDoneWrap');
+  if (hDoneWrap) hDoneWrap.style.display = done.length ? 'block' : 'none';
   doneToggle.style.display = done.length ? 'flex' : 'none';
   doneLbl.textContent = `Completed (${done.length})`;
   const restoreIcon = `<svg viewBox="0 0 13 13" fill="none" stroke="currentColor" stroke-width="1.2" stroke-linecap="round" stroke-linejoin="round"><path d="M2 6.5a4.5 4.5 0 1 0 1.2-3"/><polyline points="2 2 2 6.5 6 6.5"/></svg>`;
@@ -2345,9 +2869,9 @@ function toggleDone() {
 let dragId = null, placeholder = null;
 
 function initDrag(list) {
-  list.querySelectorAll('.task-card').forEach(card => {
-    card.addEventListener('dragstart', onDragStart);
-    card.addEventListener('dragend',   onDragEnd);
+  list.querySelectorAll('.drag-handle').forEach(handle => {
+    handle.addEventListener('dragstart', onDragStart);
+    handle.addEventListener('dragend',   onDragEnd);
   });
 }
 function initDropZone(list) {
@@ -2359,11 +2883,12 @@ function onDragStart(e) {
   dragId = parseInt(this.dataset.id);
   e.dataTransfer.effectAllowed = 'move';
   e.dataTransfer.setData('text/plain', String(dragId));
-  const card = this;
-  requestAnimationFrame(() => card.classList.add('dragging'));
+  const card = this.closest('.task-card');
+  requestAnimationFrame(() => { if (card) card.classList.add('dragging'); });
 }
 function onDragEnd() {
-  this.classList.remove('dragging');
+  const card = this.closest ? this.closest('.task-card') : this;
+  if (card) card.classList.remove('dragging');
   removePlaceholder();
   document.querySelectorAll('.task-list').forEach(l => l.classList.remove('drag-over'));
   dragId = null;
@@ -2477,6 +3002,46 @@ document.getElementById('taskInput').addEventListener('input', e => {
 });
 
 document.addEventListener('keydown', e => {
+  if ((e.metaKey || e.ctrlKey) && !e.shiftKey && !e.altKey) {
+    const keyMap = {'0':9,'1':0,'2':1,'3':2,'4':3,'5':4,'6':5,'7':6,'8':7,'9':8};
+    if (keyMap[e.key] !== undefined && settings.lanes) {
+      const idx = keyMap[e.key];
+      if (idx < settings.lanes.length) { e.preventDefault(); selectP(settings.lanes[idx].id); return; }
+    }
+  }
+  // Cmd/Ctrl+number — set priority from anywhere
+  if ((e.metaKey || e.ctrlKey) && !e.shiftKey && !e.altKey) {
+    const keyMap = {'0':9,'1':0,'2':1,'3':2,'4':3,'5':4,'6':5,'7':6,'8':7,'9':8};
+    if (keyMap[e.key] !== undefined && settings.lanes) {
+      const idx = keyMap[e.key];
+      if (idx < settings.lanes.length) { e.preventDefault(); selectP(settings.lanes[idx].id); return; }
+    }
+  }
+  // Cmd/Ctrl+Shift+F — Focus Lens
+  if ((e.metaKey || e.ctrlKey) && e.shiftKey && e.key === 'F') {
+    e.preventDefault(); enterFocusPickMode(); return;
+  }
+  // Number keys in focus pick mode
+  if (focusPickMode && !e.metaKey && !e.ctrlKey && !e.altKey) {
+    const keyMap = {'0':9,'1':0,'2':1,'3':2,'4':3,'5':4,'6':5,'7':6,'8':7,'9':8};
+    if (keyMap[e.key] !== undefined) {
+      const idx = keyMap[e.key];
+      if (settings.lanes && idx < settings.lanes.length) { e.preventDefault(); focusLaneById(settings.lanes[idx].id); }
+      else cancelFocusPickMode();
+      return;
+    }
+  }
+  // Cmd/Ctrl+Shift+A — Quick Capture
+  if ((e.metaKey || e.ctrlKey) && e.shiftKey && e.key === 'A') {
+    e.preventDefault();
+    document.getElementById('qcOverlay').classList.contains('open') ? closeQC() : openQC();
+    return;
+  }
+  // Enter in QC modal
+  if (e.key === 'Enter' && document.getElementById('qcOverlay').classList.contains('open')) {
+    if (document.activeElement && document.activeElement.tagName === 'TEXTAREA') return;
+    e.preventDefault(); qcAdd(); return;
+  }
   if ((e.metaKey || e.ctrlKey) && e.key === 'f') {
     e.preventDefault();
     if (!searchMode) enterSearchMode();
@@ -2489,6 +3054,9 @@ document.addEventListener('keydown', e => {
     return;
   }
   if (e.key === 'Escape') {
+    if (focusLane || focusPickMode) { exitFocusLens(); return; }
+    if (document.getElementById('qcOverlay').classList.contains('open')) { closeQC(); return; }
+    if (stOpenId !== null) { closeSTP(); return; }
     if (searchMode) { exitSearchMode(); return; }
     if (openNotes.size > 0) {
       openNotes.forEach(id => { const p = document.getElementById('note-' + id); if (p) p.remove(); });
@@ -2558,16 +3126,17 @@ function runEscalation() {
     const hasSpecificTime = (due.getHours() !== 17 || due.getMinutes() !== 0) || t._hasTime;
 
     // Rule 3: specific due time has passed → Now (any lane)
-    if (hasSpecificTime && due.getTime() <= now.getTime() && t.priority !== 'now') {
-      t.priority = 'now'; toNow++; return;
+    const l0 = settings.lanes && settings.lanes[0] ? settings.lanes[0].id : 'now';
+    const l1 = settings.lanes && settings.lanes[1] ? settings.lanes[1].id : 'soon';
+    const l2 = settings.lanes && settings.lanes[2] ? settings.lanes[2].id : 'later';
+    if (hasSpecificTime && due.getTime() <= now.getTime() && t.priority !== l0) {
+      t.priority = l0; toNow++; return;
     }
-
-    // Rules 1 & 2: 8am on due date
-    if (isAt8 && isToday && t.priority === 'later') {
+    if (isAt8 && isToday && t.priority === l2) {
       if (hasSpecificTime && due.getHours() < 12) {
-        t.priority = 'now'; toNow++;
+        t.priority = l0; toNow++;
       } else {
-        t.priority = 'soon'; toSoon++;
+        t.priority = l1; toSoon++;
       }
     }
   });
@@ -2575,8 +3144,10 @@ function runEscalation() {
   if (toNow > 0 || toSoon > 0) {
     save(); render();
     const parts = [];
-    if (toSoon > 0) parts.push(toSoon + ' → ' + (settings.laneNames[1] || 'Soon'));
-    if (toNow  > 0) parts.push(toNow  + ' → ' + (settings.laneNames[0] || 'Now'));
+    const l1name = settings.lanes && settings.lanes[1] ? settings.lanes[1].name : 'Soon';
+    const l0name = settings.lanes && settings.lanes[0] ? settings.lanes[0].name : 'Now';
+    if (toSoon > 0) parts.push(toSoon + ' → ' + l1name);
+    if (toNow  > 0) parts.push(toNow  + ' → ' + l0name);
     showToast(parts.join(' · ') + ' at ' + now.getHours() + ':' + String(now.getMinutes()).padStart(2,'0'), true);
   }
 }
@@ -2615,11 +3186,8 @@ function exportToExcel() {
     return LANE_ORDER[a.priority] - LANE_ORDER[b.priority];
   });
 
-  const laneNames = {
-    now:   settings.laneNames[0] || 'Now',
-    soon:  settings.laneNames[1] || 'Soon',
-    later: settings.laneNames[2] || 'Later',
-  };
+  const laneNames = {};
+  (settings.lanes || []).forEach(l => { laneNames[l.id] = l.name; });
 
   const rows = [['Task', 'Notes', 'Due Date', 'Lane']];
   sorted.forEach(t => {
@@ -2745,7 +3313,7 @@ const HELP_TOPICS = [
   { name: 'Coffee cup meter', content: `<p>The steam meter shows your stress level based on task count.</p><p>Formula: Now tasks + (Soon ÷ 2). Resolves to 0.5 granularity.</p><p>Adjust the max cups range in Settings → Stress meter.</p>` },
   { name: 'AI import (parse tasks)', content: `<p>Paste any text — email, notes, Slack messages — and Claude extracts action items.</p><p>Leave the task field empty and press <kbd>Enter</kbd> or click <kbd>+ Add</kbd>.</p><p>Review priorities before anything lands on the board.</p><p>Requires an Anthropic API key in Settings.</p>` },
   { name: 'AI reply generator', content: `<p>In paste mode, click <kbd>Generate reply ↗</kbd> to draft a reply.</p><p>Choose tone: Professional · Friendly · Brief.</p><p>Edit before copying. Requires an API key in Settings.</p>` },
-  { name: 'Board sharing / URL share', content: `<p>Double-click the task field to generate a share link.</p><p>The link encodes your entire board state compressed into the URL.</p><p>Recipient needs to have taskflow.html open to load it.</p>` },
+  { name: 'Board sharing / URL share', content: `<p>Double-click the task field to generate a share link.</p><p>The link encodes your entire board state compressed into the URL.</p><p>Anyone with the link can open it directly at <code>answeredsatyr.github.io/Task.Flow</code>.</p>` },
   { name: 'Archive', content: `<p>Expand the Completed list in the footer, then click the search icon to open the archive.</p><p>Click <kbd>↓ sweep to archive</kbd> to move all completed tasks to archive.</p><p>Full-text search across task names and notes. Restored tasks return to their original lane.</p>` },
   { name: 'Search (Cmd+F)', content: `<p>Press <kbd>Cmd+F</kbd> to enter search mode. The task input turns amber and filters live.</p><p>Matching cards glow yellow. Notes are searched even when collapsed.</p><p>Press <kbd>Esc</kbd> or click outside to exit.</p>` },
   { name: 'Undo (Cmd+Z)', content: `<p>Press <kbd>Cmd+Z</kbd> to undo the last action.</p><p>Covers: deleting a task, completing a task, dragging between lanes.</p><p>One level of undo only.</p>` },
@@ -2967,17 +3535,593 @@ function triggerCelCounterPop() {
   if (wrap) triggerCelConfetti(wrap, 8);
 }
 
+// ── selectP syncs QC ──────────────────────────────────────
+const _origSelectP = selectP;
+
+// ── Quick Capture ─────────────────────────────────────────
+let qcNotesOpen = false;
+let qcPendingDue = null;
+
+function openQC() {
+  qcPendingDue = null; qcNotesOpen = false;
+  document.getElementById('qcTaskInput').value = '';
+  document.getElementById('qcDueInput').value = '';
+  document.getElementById('qcDueParsed').textContent = '';
+  document.getElementById('qcNotes').value = '';
+  document.getElementById('qcNotes').classList.remove('open');
+  document.getElementById('qcNotesToggle').textContent = '+ add notes';
+  document.getElementById('qcAnother').checked = false;
+  renderQcPriority();
+  document.getElementById('qcOverlay').classList.add('open');
+  setTimeout(() => document.getElementById('qcTaskInput').focus(), 50);
+}
+function closeQC() {
+  document.getElementById('qcOverlay').classList.remove('open');
+  qcPendingDue = null; qcNotesOpen = false;
+}
+function renderQcPriority() {
+  const pg = document.getElementById('qcPriorityGroup');
+  if (!pg || !settings.lanes) return;
+  pg.innerHTML = settings.lanes.map(lane => {
+    const isActive = selP === lane.id;
+    const col = lane.color || '#888';
+    const r=parseInt(col.slice(1,3),16),g=parseInt(col.slice(3,5),16),b=parseInt(col.slice(5,7),16);
+    return `<button class="qc-p-btn${isActive?' active':''}"
+      style="${isActive?`background:rgba(${r},${g},${b},1);border-color:rgba(${r},${g},${b},0.6);`:''}"
+      onclick="selectP('${lane.id}');renderQcPriority();document.getElementById('qcTaskInput').focus();">${esc(lane.name)}</button>`;
+  }).join('');
+}
+function onQcDue(val) {
+  qcPendingDue = parseNlpDate(val);
+  document.getElementById('qcDueParsed').textContent = qcPendingDue ? fmtParsed(qcPendingDue) : (val.trim()?'?':'');
+}
+function toggleQcNotes() {
+  qcNotesOpen = !qcNotesOpen;
+  document.getElementById('qcNotes').classList.toggle('open', qcNotesOpen);
+  document.getElementById('qcNotesToggle').textContent = qcNotesOpen ? '− hide notes' : '+ add notes';
+  if (qcNotesOpen) setTimeout(() => document.getElementById('qcNotes').focus(), 30);
+  else document.getElementById('qcTaskInput').focus();
+}
+function qcAdd() {
+  const text = document.getElementById('qcTaskInput').value.trim();
+  if (!text) { document.getElementById('qcTaskInput').focus(); return; }
+  const note = document.getElementById('qcNotes').value.trim();
+  const p = selP || (settings.lanes[0] ? settings.lanes[0].id : 'now');
+  tasks.unshift({ id: Date.now(), text, priority: p, ts: Date.now(), note, due: qcPendingDue });
+  save(); render(); playClick('add');
+  showToast('added to ' + ((settings.lanes.find(l=>l.id===p)||{}).name||p), 'var(--later)');
+  if (document.getElementById('qcAnother').checked) {
+    document.getElementById('qcTaskInput').value = '';
+    document.getElementById('qcDueInput').value = '';
+    document.getElementById('qcDueParsed').textContent = '';
+    document.getElementById('qcNotes').value = '';
+    qcPendingDue = null;
+    setTimeout(() => document.getElementById('qcTaskInput').focus(), 20);
+  } else { closeQC(); }
+}
+function handleBoardDblClick(e) {
+  if (e.target.closest('.task-card, button, input, textarea, .lane-header, .lane-title, a')) return;
+  openQC();
+}
+
+// ── Card + Lane Resize ────────────────────────────────────
+let _cardResizing = null;
+let _laneResizing = null;
+
+function initResizeHandles() {
+  document.querySelectorAll('.card-resize-handle').forEach(h => {
+    h.addEventListener('mousedown', onCardResizeStart);
+  });
+  document.querySelectorAll('.lane-resize-handle').forEach(h => {
+    h.addEventListener('mousedown', onLaneResizeStart);
+  });
+}
+
+function onCardResizeStart(e) {
+  e.preventDefault(); e.stopPropagation();
+  const id = parseInt(e.currentTarget.dataset.cardId);
+  const card = document.getElementById('card-' + id);
+  if (!card) return;
+  _cardResizing = { id, startY: e.clientY, startH: card.offsetHeight };
+  document.body.style.cursor = 'ns-resize';
+  document.body.style.userSelect = 'none';
+}
+
+function onLaneResizeStart(e) {
+  e.preventDefault(); e.stopPropagation();
+  const laneId = e.currentTarget.dataset.laneId;
+  const laneEl = document.getElementById('lane-' + laneId);
+  if (!laneEl) return;
+  _laneResizing = { id: laneId, startX: e.clientX, startW: laneEl.offsetWidth };
+  document.body.style.cursor = 'col-resize';
+  document.body.style.userSelect = 'none';
+}
+
+document.addEventListener('mousemove', e => {
+  if (_cardResizing) {
+    const { id, startY, startH } = _cardResizing;
+    const newH = Math.max(52, startH + (e.clientY - startY));
+    const card = document.getElementById('card-' + id);
+    if (card) {
+      card.style.minHeight = newH + 'px';
+      const textEl = card.querySelector('.task-text');
+      if (textEl && !textEl.classList.contains('expanded')) {
+        textEl.style.webkitLineClamp = Math.max(2, Math.floor((newH - 58) / 19.6));
+      }
+    }
+  }
+  if (_laneResizing) {
+    const { id, startX, startW } = _laneResizing;
+    const newW = Math.max(120, startW + (e.clientX - startX));
+    const laneEl = document.getElementById('lane-' + id);
+    if (laneEl) laneEl.style.flex = `0 0 ${newW}px`;
+  }
+});
+
+document.addEventListener('mouseup', e => {
+  if (_cardResizing) {
+    const { id, startY, startH } = _cardResizing;
+    const newH = Math.max(52, startH + (e.clientY - startY));
+    const t = tasks.find(t => t.id === id);
+    if (t) { t.cardHeight = newH; save(); }
+    document.body.style.cursor = '';
+    document.body.style.userSelect = '';
+    _cardResizing = null;
+  }
+  if (_laneResizing) {
+    const { id, startX, startW } = _laneResizing;
+    const newW = Math.max(120, startW + (e.clientX - startX));
+    if (!settings.laneWidths) settings.laneWidths = {};
+    settings.laneWidths[id] = newW;
+    save();
+    document.body.style.cursor = '';
+    document.body.style.userSelect = '';
+    _laneResizing = null;
+  }
+});
+
+// ── Focus Lens ────────────────────────────────────────────
+let focusLane = null, focusPickMode = false;
+let focusPickTimer = null, focusPickCountdown = null, focusSecondsLeft = 5;
+
+function enterFocusPickMode() {
+  if (focusLane) { exitFocusLens(); return; }
+  if (focusPickMode) { cancelFocusPickMode(); return; }
+  focusPickMode = true; focusSecondsLeft = 5;
+  applyFocusState();
+  showToast('Pick a lane! (' + focusSecondsLeft + 's)', 'var(--soon)');
+  focusPickCountdown = setInterval(() => {
+    focusSecondsLeft--;
+    if (focusSecondsLeft <= 0) { cancelFocusPickMode(); return; }
+    showToast('Pick a lane! (' + focusSecondsLeft + 's)', 'var(--soon)');
+  }, 1000);
+  focusPickTimer = setTimeout(cancelFocusPickMode, 5000);
+}
+function cancelFocusPickMode() {
+  clearTimeout(focusPickTimer); clearInterval(focusPickCountdown);
+  focusPickMode = false; applyFocusState();
+}
+function focusLaneById(id) {
+  clearTimeout(focusPickTimer); clearInterval(focusPickCountdown);
+  focusPickMode = false; focusLane = id; applyFocusState();
+}
+function exitFocusLens() {
+  clearTimeout(focusPickTimer); clearInterval(focusPickCountdown);
+  focusLane = null; focusPickMode = false; applyFocusState();
+}
+function applyFocusState() {
+  if (!settings.lanes) return;
+  settings.lanes.forEach(lane => {
+    const laneEl  = document.getElementById('lane-' + lane.id);
+    const hdrEl   = document.getElementById('lhd-' + lane.id);
+    const eyeEl   = document.getElementById('feye-' + lane.id);
+    if (laneEl) { if (focusLane && focusLane !== lane.id) laneEl.classList.add('dimmed'); else laneEl.classList.remove('dimmed'); }
+    if (hdrEl)  { if (focusPickMode) hdrEl.classList.add('pick-glow'); else hdrEl.classList.remove('pick-glow'); }
+    if (eyeEl)  { if (focusLane === lane.id) eyeEl.classList.add('active'); else eyeEl.classList.remove('active'); }
+  });
+}
+function onFocusEyeClick(id) { if (focusLane === id) { exitFocusLens(); return; } focusLaneById(id); }
+function onLaneHeaderFocusClick(id) { if (focusPickMode) focusLaneById(id); }
+function onLaneHeaderDblClick(id, e) { e.stopPropagation(); if (focusLane === id) { exitFocusLens(); return; } focusLaneById(id); }
+
+// ── Sub-tasks ─────────────────────────────────────────────
+const stCollapsed = new Set();
+let stOpenId = null;
+
+function toggleSTP(id, e) {
+  e.stopPropagation();
+  if (stOpenId === id) { closeSTP(); return; }
+  closeSTP();
+  stOpenId = id;
+  const task = tasks.find(t => t.id === id);
+  if (!task) return;
+  if (!task.subtasks) task.subtasks = [];
+
+  let panel = document.getElementById('stp-' + id);
+  if (!panel) {
+    panel = document.createElement('div');
+    panel.className = 'st-panel open';
+    panel.id = 'stp-' + id;
+    panel.onclick = e2 => e2.stopPropagation();
+    panel.onmousedown = e2 => e2.stopPropagation();
+    document.body.appendChild(panel);
+  }
+  panel.classList.add('open');
+  renderSTP(id);
+
+  // Position below anchor
+  const anchor = document.getElementById('anchor-' + id);
+  if (anchor) {
+    const rect = anchor.getBoundingClientRect();
+    const boardRect = document.querySelector('main') ? document.querySelector('main').getBoundingClientRect() : {right: window.innerWidth};
+    const isRight = rect.left > boardRect.left + (boardRect.right - boardRect.left) * 0.66;
+    panel.style.top  = (rect.top + window.scrollY + 4) + 'px';
+    if (isRight) { panel.style.left = 'auto'; panel.style.right = (window.innerWidth - rect.right) + 'px'; }
+    else         { panel.style.left = rect.left + 'px'; panel.style.right = 'auto'; }
+  }
+  setTimeout(() => { const inp = document.getElementById('sti-' + id); if (inp) inp.focus(); }, 30);
+}
+
+function closeSTP() {
+  if (stOpenId !== null) {
+    const p = document.getElementById('stp-' + stOpenId);
+    if (p) { p.classList.remove('open'); }
+    stOpenId = null;
+  }
+}
+
+function renderSTP(id) {
+  const panel = document.getElementById('stp-' + id);
+  const task  = tasks.find(t => t.id === id);
+  if (!panel || !task) return;
+  const sts = task.subtasks || [];
+  panel.innerHTML = `
+    <div class="st-panel-label">Sub-tasks <span class="st-panel-count">${sts.length}/10</span></div>
+    <div class="st-panel-list">
+      ${sts.map(s => `<div class="st-panel-item">
+        <div class="st-box ${s.checked?'checked':''}" onclick="toggleST(${id},${s.id})"></div>
+        <span class="st-panel-text ${s.checked?'done':''}">${esc(s.text)}</span>
+        <button class="st-del" onclick="deleteST(${id},${s.id})">✕</button>
+      </div>`).join('')}
+    </div>
+    <div class="st-input-row">
+      <input class="st-input" id="sti-${id}" placeholder="Add a sub-task…" maxlength="80"
+        onkeydown="if(event.key==='Enter'){addST(${id});}"
+        onclick="event.stopPropagation()" onmousedown="event.stopPropagation()">
+      <button class="st-add" onclick="addST(${id})" style="${sts.length>=10?'opacity:0.3;pointer-events:none;':''}">+ add</button>
+    </div>`;
+}
+
+function toggleST(taskId, stId) {
+  const task = tasks.find(t => t.id === taskId);
+  if (!task || !task.subtasks) return;
+  const st = task.subtasks.find(s => s.id === stId);
+  if (!st) return;
+  st.checked = !st.checked;
+  save();
+  // Update card face inline without full re-render
+  const box  = document.querySelector(`#stl-${taskId} .st-item:nth-child(${task.subtasks.indexOf(st)+1}) .st-box`);
+  const text = document.querySelector(`#stl-${taskId} .st-item:nth-child(${task.subtasks.indexOf(st)+1}) .st-text`);
+  if (box)  { box.classList.toggle('checked', st.checked); }
+  if (text) { text.classList.toggle('done', st.checked); }
+  const prog = document.querySelector(`#sts-${taskId} .st-progress`);
+  if (prog) prog.textContent = task.subtasks.filter(s=>s.checked).length + ' / ' + task.subtasks.length;
+  if (stOpenId === taskId) renderSTP(taskId);
+}
+
+function addST(id) {
+  const task = tasks.find(t => t.id === id);
+  if (!task) return;
+  if (!task.subtasks) task.subtasks = [];
+  if (task.subtasks.length >= 10) return;
+  const inp = document.getElementById('sti-' + id);
+  if (!inp) return;
+  const text = inp.value.trim();
+  if (!text) return;
+  task.subtasks.push({ id: Date.now(), text, checked: false });
+  inp.value = '';
+  save(); render();
+  // Re-open panel after render
+  setTimeout(() => { if (stOpenId === null) { stOpenId = id; } renderSTP(id); const p = document.getElementById('stp-'+id); if(p) p.classList.add('open'); const i2 = document.getElementById('sti-'+id); if(i2) i2.focus(); }, 50);
+}
+
+function deleteST(taskId, stId) {
+  const task = tasks.find(t => t.id === taskId);
+  if (!task || !task.subtasks) return;
+  task.subtasks = task.subtasks.filter(s => s.id !== stId);
+  save(); render();
+  setTimeout(() => { if (stOpenId === null) { stOpenId = taskId; } renderSTP(taskId); const p = document.getElementById('stp-'+taskId); if(p) p.classList.add('open'); const i2 = document.getElementById('sti-'+taskId); if(i2) i2.focus(); }, 50);
+}
+
+function toggleSTCollapse(id, e) {
+  e.stopPropagation();
+  if (stCollapsed.has(id)) stCollapsed.delete(id);
+  else stCollapsed.add(id);
+  const list = document.getElementById('stl-' + id);
+  const btn  = document.getElementById('stc-' + id);
+  if (list) list.style.display = stCollapsed.has(id) ? 'none' : 'flex';
+  if (btn)  btn.textContent = stCollapsed.has(id) ? '▾' : '▴';
+}
+
+// Close st panel on click outside
+document.addEventListener('click', e => {
+  if (stOpenId === null) return;
+  if (e.target.closest('.st-panel') || e.target.closest('.st-btn')) return;
+  closeSTP();
+});
+
+// ── Supabase Cloud Sync ───────────────────────────────────
+const _SURL = 'https://zbmhphlazgrcgkunfyev.supabase.co';
+const _SKEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InpibWhwaGxhemdyY2drdW5meWV2Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzM1OTgxNTAsImV4cCI6MjA4OTE3NDE1MH0.r685oNvBGXYsfkbM3fqejvTXQ8_V-Iz4YSymWgDOM3M';
+let _sb = null;          // supabase client
+let _user = null;        // current user
+let _saveTimer = null;   // debounce timer
+let _authMode = 'in';    // 'in' | 'up'
+let _rt = null;          // realtime channel
+
+// ── Init (called after CDN loads) ─────────────────────────
+function sbInit() {
+  console.log('[TF] sbInit called. typeof supabase:', typeof supabase);
+  if (typeof supabase === 'undefined') { setTimeout(sbInit, 300); return; }
+  console.log('[TF] Supabase found, creating client');
+  _sb = supabase.createClient(_SURL, _SKEY);
+  _sb.auth.onAuthStateChange(async (_e, session) => {
+    _user = session ? session.user : null;
+    updateSyncUI();
+    if (_user) {
+      await cloudMigrate();
+      await cloudLoad();
+      rtSubscribe();
+    } else {
+      rtUnsub();
+    }
+  });
+  _sb.auth.getSession().then(({data}) => {
+    _user = data.session ? data.session.user : null;
+    updateSyncUI();
+  });
+}
+
+// ── Auth UI ───────────────────────────────────────────────
+function onSyncBtn() {
+  if (!_sb) { showToast('Connecting…', 'var(--soon)'); return; }
+  if (_user) { if (confirm('Sign out?')) _sb.auth.signOut(); }
+  else openAuth();
+}
+
+function openAuth() {
+  _authMode = 'in';
+  document.getElementById('authSub').textContent = 'sign in to sync across devices';
+  document.getElementById('authBtn').textContent = 'Sign in';
+  document.getElementById('authToggle').innerHTML = 'No account? <span onclick="toggleAuthMode()">Create one</span>';
+  document.getElementById('authEmail').value = '';
+  document.getElementById('authPassword').value = '';
+  document.getElementById('authErr').className = 'auth-err';
+  document.getElementById('authMsg').className = 'auth-msg';
+  document.getElementById('authOverlay').classList.add('open');
+  setTimeout(() => document.getElementById('authEmail').focus(), 60);
+}
+
+function closeAuth() {
+  document.getElementById('authOverlay').classList.remove('open');
+}
+
+function toggleAuthMode() {
+  _authMode = _authMode === 'in' ? 'up' : 'in';
+  const isIn = _authMode === 'in';
+  document.getElementById('authSub').textContent = isIn ? 'sign in to sync across devices' : 'create a free account';
+  document.getElementById('authBtn').textContent = isIn ? 'Sign in' : 'Create account';
+  document.getElementById('authToggle').innerHTML = isIn
+    ? 'No account? <span onclick="toggleAuthMode()">Create one</span>'
+    : 'Have an account? <span onclick="toggleAuthMode()">Sign in</span>';
+  document.getElementById('authErr').className = 'auth-err';
+  document.getElementById('authMsg').className = 'auth-msg';
+}
+
+async function doAuth() {
+  if (!_sb) return;
+  const email = document.getElementById('authEmail').value.trim();
+  const pw    = document.getElementById('authPassword').value;
+  const btn   = document.getElementById('authBtn');
+  const errEl = document.getElementById('authErr');
+  const msgEl = document.getElementById('authMsg');
+  if (!email || !pw) { errEl.textContent = 'Email and password required.'; errEl.className = 'auth-err show'; return; }
+  btn.disabled = true;
+  btn.textContent = 'Please wait…';
+  errEl.className = 'auth-err';
+  msgEl.className = 'auth-msg';
+  const fn = _authMode === 'in'
+    ? _sb.auth.signInWithPassword({ email, password: pw })
+    : _sb.auth.signUp({ email, password: pw });
+  const { data, error } = await fn;
+  if (error) {
+    errEl.textContent = error.message;
+    errEl.className = 'auth-err show';
+    btn.disabled = false;
+    btn.textContent = _authMode === 'in' ? 'Sign in' : 'Create account';
+    return;
+  }
+  if (_authMode === 'up' && data.user && !data.session) {
+    msgEl.textContent = 'Check your email to confirm your account.';
+    msgEl.className = 'auth-msg show';
+    btn.disabled = false;
+    btn.textContent = 'Create account';
+    return;
+  }
+  closeAuth();
+}
+
+function updateSyncUI() {
+  const btn = document.getElementById('syncBtn');
+  const dot = document.getElementById('syncDot');
+  if (!btn || !dot) return;
+  if (_user) {
+    btn.textContent = _user.email.split('@')[0];
+    btn.classList.add('signed-in');
+    btn.title = _user.email + ' — click to sign out';
+    dot.className = 'sync-indicator ok';
+    dot.title = 'Synced';
+  } else {
+    btn.textContent = 'sign in';
+    btn.classList.remove('signed-in');
+    btn.title = '';
+    dot.className = 'sync-indicator';
+    dot.title = 'Not signed in';
+  }
+}
+
+function setSyncDot(state) {
+  const dot = document.getElementById('syncDot');
+  if (!dot) return;
+  dot.className = 'sync-indicator' + (state ? ' ' + state : '');
+}
+
+// Close auth on backdrop click
+document.getElementById('authOverlay').addEventListener('click', function(e) {
+  if (e.target === this) closeAuth();
+});
+
+// ── Cloud save (debounced 1.5s) ───────────────────────────
+function cloudSave() {
+  if (!_sb || !_user) return;
+  setSyncDot('syncing');
+  clearTimeout(_saveTimer);
+  _saveTimer = setTimeout(async () => {
+    try {
+      // Upsert boards
+      const bRows = boards.map((b, i) => ({
+        id: b.id, user_id: _user.id,
+        name: b.name, accent: b.accent || '#8B2A10', position: i
+      }));
+      await _sb.from('boards').upsert(bRows, { onConflict: 'id' });
+      // Upsert all tasks for active board
+      const allTasks = [
+        ...tasks.map((t, i) => ({ id: String(t.id), user_id: _user.id, board_id: activeBoardId, data: t, position: i, state: 'active' })),
+        ...done.map((t, i) => ({ id: String(t.id), user_id: _user.id, board_id: activeBoardId, data: t, position: i, state: 'done' })),
+        ...archive.map((t, i) => ({ id: String(t.id), user_id: _user.id, board_id: activeBoardId, data: t, position: i, state: 'archived' }))
+      ];
+      if (allTasks.length) {
+        await _sb.from('tasks').upsert(allTasks, { onConflict: 'id' });
+      }
+      // Upsert settings (strip apiKey)
+      const s = Object.assign({}, settings); delete s.apiKey;
+      await _sb.from('settings').upsert(
+        { board_id: activeBoardId, user_id: _user.id, data: s, updated_at: new Date().toISOString() },
+        { onConflict: 'board_id' }
+      );
+      setSyncDot('ok');
+    } catch(e) { console.error('cloudSave', e); setSyncDot('err'); }
+  }, 1500);
+}
+
+// ── Cloud load ────────────────────────────────────────────
+async function cloudLoad() {
+  if (!_sb || !_user) return;
+  setSyncDot('syncing');
+  try {
+    // Load boards
+    const { data: bData } = await _sb.from('boards').select('*').order('position');
+    if (bData && bData.length) {
+      boards = bData.map(b => ({ id: b.id, name: b.name, accent: b.accent }));
+      localStorage.setItem('tf-boards', JSON.stringify(boards));
+      if (!boards.find(b => b.id === activeBoardId)) {
+        activeBoardId = boards[0].id;
+        localStorage.setItem('tf-active-board', activeBoardId);
+      }
+    }
+    // Load tasks
+    const { data: tData } = await _sb.from('tasks').select('*')
+      .eq('board_id', activeBoardId).order('position');
+    if (tData) {
+      tasks   = tData.filter(t => t.state === 'active').map(t => t.data);
+      done    = tData.filter(t => t.state === 'done').map(t => t.data);
+      archive = tData.filter(t => t.state === 'archived').map(t => t.data);
+      localStorage.setItem('tf-board-' + activeBoardId + '-tasks',   JSON.stringify(tasks));
+      localStorage.setItem('tf-board-' + activeBoardId + '-done',    JSON.stringify(done));
+      localStorage.setItem('tf-board-' + activeBoardId + '-archive', JSON.stringify(archive));
+    }
+    // Load settings
+    const { data: sData } = await _sb.from('settings').select('*')
+      .eq('board_id', activeBoardId).maybeSingle();
+    if (sData) {
+      const apiKey = settings.apiKey; // preserve local api key
+      settings = Object.assign({}, DEFAULT_BOARD_SETTINGS, sData.data);
+      settings.apiKey = apiKey;
+      localStorage.setItem('tf-board-' + activeBoardId + '-settings', JSON.stringify(settings));
+    }
+    applySettings(); render(); renderBoardTabs();
+    setSyncDot('ok');
+  } catch(e) { console.error('cloudLoad', e); setSyncDot('err'); }
+}
+
+// ── Migrate localStorage → cloud (first login only) ───────
+async function cloudMigrate() {
+  if (!_sb || !_user) return;
+  const { data: existing } = await _sb.from('boards').select('id').limit(1);
+  if (existing && existing.length) return; // already have cloud data
+  const localBoards = (() => { try { return JSON.parse(localStorage.getItem('tf-boards') || 'null'); } catch { return null; } })();
+  if (!localBoards || !localBoards.length) return;
+  showToast('Migrating local data to cloud…', 'var(--soon)');
+  for (let i = 0; i < localBoards.length; i++) {
+    const b = localBoards[i];
+    await _sb.from('boards').upsert(
+      { id: b.id, user_id: _user.id, name: b.name, accent: b.accent || '#8B2A10', position: i },
+      { onConflict: 'id' }
+    );
+    const lTasks   = (() => { try { return JSON.parse(localStorage.getItem('tf-board-' + b.id + '-tasks')   || '[]'); } catch { return []; } })();
+    const lDone    = (() => { try { return JSON.parse(localStorage.getItem('tf-board-' + b.id + '-done')    || '[]'); } catch { return []; } })();
+    const lArchive = (() => { try { return JSON.parse(localStorage.getItem('tf-board-' + b.id + '-archive') || '[]'); } catch { return []; } })();
+    const lSettings= (() => { try { return JSON.parse(localStorage.getItem('tf-board-' + b.id + '-settings')|| '{}'); } catch { return {}; } })();
+    const rows = [
+      ...lTasks.map((t,j)   => ({ id: String(t.id), user_id: _user.id, board_id: b.id, data: t, position: j, state: 'active' })),
+      ...lDone.map((t,j)    => ({ id: String(t.id), user_id: _user.id, board_id: b.id, data: t, position: j, state: 'done' })),
+      ...lArchive.map((t,j) => ({ id: String(t.id), user_id: _user.id, board_id: b.id, data: t, position: j, state: 'archived' }))
+    ];
+    if (rows.length) await _sb.from('tasks').upsert(rows, { onConflict: 'id' });
+    const s = Object.assign({}, lSettings); delete s.apiKey;
+    if (Object.keys(s).length) {
+      await _sb.from('settings').upsert(
+        { board_id: b.id, user_id: _user.id, data: s },
+        { onConflict: 'board_id' }
+      );
+    }
+  }
+  showToast('Synced to cloud ✓', 'var(--later)');
+}
+
+// ── Realtime subscription ─────────────────────────────────
+function rtSubscribe() {
+  if (!_sb || !_user) return;
+  rtUnsub();
+  _rt = _sb.channel('tf-' + _user.id)
+    .on('postgres_changes', { event: '*', schema: 'public', table: 'tasks',
+        filter: 'user_id=eq.' + _user.id },
+      async () => { await cloudLoad(); })
+    .on('postgres_changes', { event: '*', schema: 'public', table: 'boards',
+        filter: 'user_id=eq.' + _user.id },
+      async () => { await cloudLoad(); })
+    .subscribe();
+}
+
+function rtUnsub() {
+  if (_rt) { _sb.removeChannel(_rt); _rt = null; }
+}
+
 // ── Boot ───────────────────────────────────────────────────
 loadFromURL().then(() => {
+  loadBoard(activeBoardId);
   applySettings();
   render();
-  // align user name after fonts are fully loaded and painted
+  renderBoardTabs();
   document.fonts.ready.then(() => {
-    requestAnimationFrame(() => {
-      alignUserName();
-    });
+    requestAnimationFrame(() => { alignUserName(); });
   });
 });
+// Start Supabase after page load
+console.log('[TF] Script loaded. readyState:', document.readyState);
+console.log('[TF] typeof supabase:', typeof supabase);
+if (document.readyState === 'complete') { sbInit(); }
+else { window.addEventListener('load', sbInit); }
 </script>
 </body>
 </html>
