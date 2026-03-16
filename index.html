@@ -3956,16 +3956,11 @@ function renderAttPanel(taskId) {
 }
 
 function triggerAttUpload(taskId) {
-  if (!_sb) { openAuth(); return; }
-  // Re-check session directly rather than relying on _user which can go null
-  _sb.auth.getSession().then(({ data }) => {
-    if (!data.session) { openAuth(); return; }
-    _user = data.session.user;
-    _attOpenId = taskId;
-    const inp = document.getElementById('attFileInput');
-    inp.dataset.taskId = String(taskId); // store on element as backup
-    inp.click();
-  });
+  if (!_sb || !_user) { openAuth(); return; }
+  _attOpenId = taskId;
+  const inp = document.getElementById('attFileInput');
+  inp.dataset.taskId = String(taskId);
+  inp.click(); // must be synchronous — browser blocks file picker in async callbacks
 }
 
 async function handleAttUpload(e) {
@@ -3974,11 +3969,11 @@ async function handleAttUpload(e) {
   const taskId = e.target.dataset.taskId || _attOpenId;
   console.log('file:', file ? file.name : 'none', 'taskId:', taskId, 'sb:', !!_sb, 'user:', !!_user);
   e.target.value = '';
-  if (!file || taskId === null || taskId === undefined || !_sb) {
+  if (!file || !taskId || !_sb) {
     console.log('handleAttUpload early exit - file:', !!file, 'taskId:', taskId, 'sb:', !!_sb);
     return;
   }
-  // Re-fetch session in case _user went stale from lock contention
+  // Refresh session if _user went stale due to lock contention
   if (!_user) {
     const { data } = await _sb.auth.getSession();
     if (!data.session) { showToast('Please sign in again', 'var(--now)'); return; }
