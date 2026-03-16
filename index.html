@@ -1239,9 +1239,11 @@
 <input type="file" id="attInput" style="display:none"
   accept=".jpg,.jpeg,.png,.gif,.webp,.svg,.pdf,.docx,.xlsx,.pptx"
   onchange="handleAttUpload(event)">
-<input type="file" id="attFileInput" style="display:none"
-  accept=".jpg,.jpeg,.png,.gif,.webp,.svg,.pdf,.docx,.xlsx,.pptx"
-  onchange="handleAttUpload(event)">
+<label id="attFileLabel" style="display:none">
+  <input type="file" id="attFileInput"
+    accept=".jpg,.jpeg,.png,.gif,.webp,.svg,.pdf,.docx,.xlsx,.pptx"
+    onchange="handleAttUpload(event)">
+</label>
 <div class="qc-overlay" id="qcOverlay" onclick="if(event.target===this)closeQC()">
   <div class="qc-panel">
     <div class="qc-title">Quick Capture</div>
@@ -3952,7 +3954,13 @@ function renderAttPanel(taskId) {
         ).join('') +
         '</div>'
       : '<div class="att-empty">No attachments yet</div>') +
-    '<button class="att-upload" onclick="triggerAttUpload(' + taskId + ')">+ attach file</button>';
+    '<label class="att-upload" onclick="prepAttUpload(' + taskId + ')" for="attFileInput">+ attach file</label>';
+}
+
+function prepAttUpload(taskId) {
+  if (!_sb || !_user) { openAuth(); return; }
+  _attOpenId = taskId;
+  document.getElementById('attFileInput').dataset.taskId = String(taskId);
 }
 
 function triggerAttUpload(taskId) {
@@ -3960,7 +3968,7 @@ function triggerAttUpload(taskId) {
   _attOpenId = taskId;
   const inp = document.getElementById('attFileInput');
   inp.dataset.taskId = String(taskId);
-  inp.click(); // must be synchronous — browser blocks file picker in async callbacks
+  inp.click();
 }
 
 async function handleAttUpload(e) {
