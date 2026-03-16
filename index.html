@@ -3991,29 +3991,37 @@ async function handleAttUpload(e) {
   if (file.size > 5 * 1024 * 1024) { showToast('Max file size is 5MB', 'var(--now)'); return; }
   setSyncDot('syncing');
   showToast('Uploading…', 'var(--soon)');
-  const ext  = file.name.split('.').pop().toLowerCase();
-  const path = _user.id + '/' + String(taskId) + '/' + Date.now() + '.' + ext;
-  const { error: upErr } = await _sb.storage.from('attachments').upload(path, file);
-  if (upErr) { console.error('Storage upload error:', upErr); showToast('Upload failed: ' + upErr.message, 'var(--now)'); setSyncDot('err'); return; }
-  console.log('Storage upload OK, inserting to DB for task:', String(taskId));
-  const { data: row, error: dbErr } = await _sb.from('attachments')
-    .insert({ user_id: _user.id, task_id: String(taskId), filename: file.name, size: file.size, mime_type: file.type, storage_path: path })
-    .select().single();
-  console.log('DB insert result - row:', row, 'error:', dbErr);
-  if (dbErr) { showToast('Save failed: ' + dbErr.message, 'var(--now)'); setSyncDot('err'); return; }
-  const task = tasks.find(t => t.id === taskId);
-  if (task) {
-    if (!task.attachments) task.attachments = [];
-    task.attachments.push({ id: row.id, filename: file.name, size: file.size, mime_type: file.type, storage_path: path });
-    save(); render();
-    setTimeout(() => {
-      _attOpenId = taskId;
-      const p = document.getElementById('atp-' + taskId);
-      if (p) { p.classList.add('open'); renderAttPanel(taskId); }
-    }, 60);
+  try {
+    const ext  = file.name.split('.').pop().toLowerCase();
+    const path = _user.id + '/' + String(taskId) + '/' + Date.now() + '.' + ext;
+    console.log('Uploading to storage path:', path);
+    const { error: upErr } = await _sb.storage.from('attachments').upload(path, file);
+    if (upErr) { console.error('Storage upload error:', upErr); showToast('Upload failed: ' + upErr.message, 'var(--now)'); setSyncDot('err'); return; }
+    console.log('Storage upload OK, inserting to DB for task:', String(taskId));
+    const { data: row, error: dbErr } = await _sb.from('attachments')
+      .insert({ user_id: _user.id, task_id: String(taskId), filename: file.name, size: file.size, mime_type: file.type, storage_path: path })
+      .select().single();
+    console.log('DB insert result - row:', JSON.stringify(row), 'error:', dbErr ? dbErr.message : null);
+    if (dbErr) { showToast('Save failed: ' + dbErr.message, 'var(--now)'); setSyncDot('err'); return; }
+    const task = tasks.find(t => t.id == taskId);
+    console.log('Task found:', !!task, 'taskId type:', typeof taskId, 'task.id type:', task ? typeof task.id : 'n/a');
+    if (task) {
+      if (!task.attachments) task.attachments = [];
+      task.attachments.push({ id: row.id, filename: file.name, size: file.size, mime_type: file.type, storage_path: path });
+      save(); render();
+      setTimeout(() => {
+        _attOpenId = taskId;
+        const p = document.getElementById('atp-' + taskId);
+        if (p) { p.classList.add('open'); renderAttPanel(taskId); }
+      }, 60);
+    }
+    setSyncDot('ok');
+    showToast('Attached: ' + file.name, 'var(--later)');
+  } catch(err) {
+    console.error('handleAttUpload caught error:', err);
+    showToast('Upload error: ' + err.message, 'var(--now)');
+    setSyncDot('err');
   }
-  setSyncDot('ok');
-  showToast('Attached: ' + file.name, 'var(--later)');
 }
 
 async function openAtt(el) {
