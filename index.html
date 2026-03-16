@@ -3969,8 +3969,10 @@ function triggerAttUpload(taskId) {
 }
 
 async function handleAttUpload(e) {
+  console.log('handleAttUpload fired', e.target.files.length, 'files');
   const file = e.target.files[0];
   const taskId = e.target.dataset.taskId || _attOpenId;
+  console.log('file:', file ? file.name : 'none', 'taskId:', taskId, 'sb:', !!_sb, 'user:', !!_user);
   e.target.value = '';
   if (!file || taskId === null || taskId === undefined || !_sb) {
     console.log('handleAttUpload early exit - file:', !!file, 'taskId:', taskId, 'sb:', !!_sb);
