@@ -4082,7 +4082,9 @@ async function openAtt(el) {
     });
     if (!res.ok) { showToast('Could not open file', 'var(--now)'); return; }
     const json = await res.json();
-    const signedUrl = _SURL + '/storage/v1' + json.signedURL;
+    // signedURL may be a full URL or a path — handle both
+    const signedUrl = json.signedUrl || json.signedURL ||
+      (_SURL + '/storage/v1/object/sign/attachments/' + storagePath + '?token=' + (json.token || ''));
     const isViewable = mimeType && (mimeType.startsWith('image/') || mimeType === 'application/pdf');
     const a = document.createElement('a');
     a.href = signedUrl;
@@ -4336,9 +4338,16 @@ async function cloudLoad() {
   if (!_sb || !_user) return;
   setSyncDot('syncing');
   try {
+    // Get fresh token — avoids lock contention on JS client awaits
+    const { data: sd } = await _sb.auth.getSession();
+    const tok = sd.session ? sd.session.access_token : null;
+    if (!tok) { setSyncDot('err'); return; }
+    const hdrs = { 'Authorization': 'Bearer ' + tok, 'apikey': _SKEY, 'Content-Type': 'application/json' };
+
     // Load boards
-    const { data: bData } = await _sb.from('boards').select('*').order('position');
-    if (bData && bData.length) {
+    const bRes = await fetch(_SURL + '/rest/v1/boards?select=*&order=position', { headers: hdrs });
+    const bData = bRes.ok ? await bRes.json() : [];
+    if (bData.length) {
       boards = bData.map(b => ({ id: b.id, name: b.name, accent: b.accent }));
       localStorage.setItem('tf-boards', JSON.stringify(boards));
       if (!boards.find(b => b.id === activeBoardId)) {
@@ -4346,41 +4355,43 @@ async function cloudLoad() {
         localStorage.setItem('tf-active-board', activeBoardId);
       }
     }
-    // Load tasks
-    const { data: tData } = await _sb.from('tasks').select('*')
-      .eq('board_id', activeBoardId).order('position');
-    if (tData) {
-      tasks   = tData.filter(t => t.state === 'active').map(t => t.data);
-      done    = tData.filter(t => t.state === 'done').map(t => t.data);
-      archive = tData.filter(t => t.state === 'archived').map(t => t.data);
-      // Fetch attachments and stitch onto tasks
-      const taskIds = tasks.map(t => String(t.id));
-      if (taskIds.length) {
-        const { data: attData } = await _sb.from('attachments').select('*').in('task_id', taskIds);
-        if (attData) {
-          tasks.forEach(t => {
-            t.attachments = attData
-              .filter(a => a.task_id === String(t.id))
-              .map(a => ({ id: a.id, filename: a.filename, size: a.size, mime_type: a.mime_type, storage_path: a.storage_path }));
-          });
-        }
-      }
-      localStorage.setItem('tf-board-' + activeBoardId + '-tasks',   JSON.stringify(tasks));
-      localStorage.setItem('tf-board-' + activeBoardId + '-done',    JSON.stringify(done));
-      localStorage.setItem('tf-board-' + activeBoardId + '-archive', JSON.stringify(archive));
+
+    // Load tasks for active board
+    const tRes = await fetch(_SURL + '/rest/v1/tasks?select=*&board_id=eq.' + activeBoardId + '&order=position', { headers: hdrs });
+    const tData = tRes.ok ? await tRes.json() : [];
+    tasks   = tData.filter(t => t.state === 'active').map(t => t.data);
+    done    = tData.filter(t => t.state === 'done').map(t => t.data);
+    archive = tData.filter(t => t.state === 'archived').map(t => t.data);
+
+    // Load attachments and stitch onto tasks
+    const taskIds = tasks.map(t => String(t.id));
+    if (taskIds.length) {
+      const aRes = await fetch(_SURL + '/rest/v1/attachments?select=*&task_id=in.(' + taskIds.join(',') + ')', { headers: hdrs });
+      const attData = aRes.ok ? await aRes.json() : [];
+      tasks.forEach(t => {
+        t.attachments = attData
+          .filter(a => a.task_id === String(t.id))
+          .map(a => ({ id: a.id, filename: a.filename, size: a.size, mime_type: a.mime_type, storage_path: a.storage_path }));
+      });
     }
+
+    localStorage.setItem('tf-board-' + activeBoardId + '-tasks',   JSON.stringify(tasks));
+    localStorage.setItem('tf-board-' + activeBoardId + '-done',    JSON.stringify(done));
+    localStorage.setItem('tf-board-' + activeBoardId + '-archive', JSON.stringify(archive));
+
     // Load settings
-    const { data: sData } = await _sb.from('settings').select('*')
-      .eq('board_id', activeBoardId).maybeSingle();
-    if (sData) {
-      const apiKey = settings.apiKey; // preserve local api key
-      settings = Object.assign({}, DEFAULT_BOARD_SETTINGS, sData.data);
+    const sRes = await fetch(_SURL + '/rest/v1/settings?select=*&board_id=eq.' + activeBoardId + '&limit=1', { headers: hdrs });
+    const sArr = sRes.ok ? await sRes.json() : [];
+    if (sArr.length) {
+      const apiKey = settings.apiKey;
+      settings = Object.assign({}, DEFAULT_BOARD_SETTINGS, sArr[0].data);
       settings.apiKey = apiKey;
       localStorage.setItem('tf-board-' + activeBoardId + '-settings', JSON.stringify(settings));
     }
+
     applySettings(); render(); renderBoardTabs();
     setSyncDot('ok');
-  } catch(e) { console.error('cloudLoad', e); setSyncDot('err'); }
+  } catch(e) { console.error('cloudLoad error:', e); setSyncDot('err'); }
 }
 
 // ── Migrate localStorage → cloud (first login only) ───────
