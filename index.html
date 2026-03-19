@@ -3937,7 +3937,7 @@ function closeAttPanel() {
 
 function renderAttPanel(taskId) {
   const panel = document.getElementById('atp-' + taskId);
-  const task  = tasks.find(t => t.id === taskId);
+  const task  = tasks.find(t => String(t.id) === String(taskId));
   if (!panel || !task) return;
   const atts = task.attachments || [];
   panel.innerHTML =
@@ -3954,13 +3954,15 @@ function renderAttPanel(taskId) {
         ).join('') +
         '</div>'
       : '<div class="att-empty">No attachments yet</div>') +
-    '<label class="att-upload" onclick="prepAttUpload(' + taskId + ')" for="attFileInput">+ attach file</label>';
+    '<label class="att-upload" onclick="prepAttUpload(' + taskId + ')">+ attach file</label>';
 }
 
 function prepAttUpload(taskId) {
   if (!_sb || !_user) { openAuth(); return; }
   _attOpenId = taskId;
-  document.getElementById('attFileInput').dataset.taskId = String(taskId);
+  const inp = document.getElementById('attFileInput');
+  inp.dataset.taskId = String(taskId);
+  inp.click();
 }
 
 function triggerAttUpload(taskId) {
@@ -4046,9 +4048,27 @@ async function handleAttUpload(e) {
       task.attachments.push({ id: row.id, filename: file.name, size: file.size, mime_type: file.type, storage_path: path });
       save(); render();
       setTimeout(() => {
+        // Always recreate panel after render since DOM was rebuilt
         _attOpenId = taskId;
-        const p = document.getElementById('atp-' + taskId);
-        if (p) { p.classList.add('open'); renderAttPanel(taskId); }
+        let p = document.getElementById('atp-' + taskId);
+        if (!p) {
+          p = document.createElement('div');
+          p.className = 'att-panel';
+          p.id = 'atp-' + taskId;
+          p.onclick = ev => ev.stopPropagation();
+          document.body.appendChild(p);
+        }
+        // Reposition
+        const anchor = document.getElementById('anchor-' + taskId);
+        if (anchor) {
+          const r = anchor.getBoundingClientRect();
+          const fromRight = window.innerWidth - r.right;
+          if (fromRight < 280) { p.style.right = fromRight + 'px'; p.style.left = 'auto'; }
+          else { p.style.left = r.left + 'px'; p.style.right = 'auto'; }
+          p.style.top = (r.top + window.scrollY + 4) + 'px';
+        }
+        p.classList.add('open');
+        renderAttPanel(taskId);
       }, 80);
     }
     setSyncDot('ok');
@@ -4082,9 +4102,10 @@ async function openAtt(el) {
     });
     if (!res.ok) { showToast('Could not open file', 'var(--now)'); return; }
     const json = await res.json();
-    // signedURL may be a full URL or a path — handle both
-    const signedUrl = json.signedUrl || json.signedURL ||
-      (_SURL + '/storage/v1/object/sign/attachments/' + storagePath + '?token=' + (json.token || ''));
+    // Supabase returns signedURL as a path like "/storage/v1/object/sign/..."
+    // Prepend just the project URL (not extra /storage/v1)
+    const rawUrl = json.signedUrl || json.signedURL || '';
+    const signedUrl = rawUrl.startsWith('http') ? rawUrl : _SURL + rawUrl;
     const isViewable = mimeType && (mimeType.startsWith('image/') || mimeType === 'application/pdf');
     const a = document.createElement('a');
     a.href = signedUrl;
@@ -4106,10 +4127,15 @@ async function deleteAtt(el) {
     const { data: sessionData } = await _sb.auth.getSession();
     const accessToken = sessionData.session ? sessionData.session.access_token : null;
     if (!accessToken) { showToast('Please sign in again', 'var(--now)'); return; }
-    // Delete from storage via fetch
-    await fetch(_SURL + '/storage/v1/object/attachments/' + storagePath, {
+    // Delete from storage via fetch (correct endpoint uses DELETE with body)
+    await fetch(_SURL + '/storage/v1/object/attachments', {
       method: 'DELETE',
-      headers: { 'Authorization': 'Bearer ' + accessToken, 'apikey': _SKEY }
+      headers: {
+        'Authorization': 'Bearer ' + accessToken,
+        'apikey': _SKEY,
+        'Content-Type': 'application/json'
+      },
+      body: JSON.stringify({ prefixes: [storagePath] })
     });
     // Delete from DB via fetch
     await fetch(_SURL + '/rest/v1/attachments?id=eq.' + attId, {
@@ -4122,8 +4148,24 @@ async function deleteAtt(el) {
       save(); render();
       setTimeout(() => {
         _attOpenId = taskId;
-        const p = document.getElementById('atp-' + taskId);
-        if (p) { p.classList.add('open'); renderAttPanel(taskId); }
+        let p = document.getElementById('atp-' + taskId);
+        if (!p) {
+          p = document.createElement('div');
+          p.className = 'att-panel';
+          p.id = 'atp-' + taskId;
+          p.onclick = ev => ev.stopPropagation();
+          document.body.appendChild(p);
+        }
+        const anchor = document.getElementById('anchor-' + taskId);
+        if (anchor) {
+          const r = anchor.getBoundingClientRect();
+          const fromRight = window.innerWidth - r.right;
+          if (fromRight < 280) { p.style.right = fromRight + 'px'; p.style.left = 'auto'; }
+          else { p.style.left = r.left + 'px'; p.style.right = 'auto'; }
+          p.style.top = (r.top + window.scrollY + 4) + 'px';
+        }
+        p.classList.add('open');
+        renderAttPanel(taskId);
       }, 60);
     }
     showToast('Attachment deleted', 'var(--muted)');
