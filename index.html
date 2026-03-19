@@ -3972,39 +3972,75 @@ function triggerAttUpload(taskId) {
 }
 
 async function handleAttUpload(e) {
-  console.log('handleAttUpload fired', e.target.files.length, 'files');
-  const file = e.target.files[0];
+  const file   = e.target.files[0];
   const taskId = e.target.dataset.taskId || _attOpenId;
-  console.log('file:', file ? file.name : 'none', 'taskId:', taskId, 'sb:', !!_sb, 'user:', !!_user);
   e.target.value = '';
-  if (!file || !taskId || !_sb) {
-    console.log('handleAttUpload early exit - file:', !!file, 'taskId:', taskId, 'sb:', !!_sb);
-    return;
-  }
-  // Refresh session if _user went stale due to lock contention
+  if (!file || !taskId || !_sb) return;
   if (!_user) {
     const { data } = await _sb.auth.getSession();
     if (!data.session) { showToast('Please sign in again', 'var(--now)'); return; }
     _user = data.session.user;
   }
-  _attOpenId = taskId;
-  if (file.size > 5 * 1024 * 1024) { showToast('Max file size is 5MB', 'var(--now)'); return; }
+  if (file.size > 5 * 1024 * 1024) { showToast('Max 5MB per file', 'var(--now)'); return; }
   setSyncDot('syncing');
   showToast('Uploading…', 'var(--soon)');
   try {
+    // Get fresh access token — avoids stale session issues
+    const { data: sessionData } = await _sb.auth.getSession();
+    const accessToken = sessionData.session ? sessionData.session.access_token : null;
+    if (!accessToken) { showToast('Session expired — please sign in again', 'var(--now)'); return; }
+
     const ext  = file.name.split('.').pop().toLowerCase();
     const path = _user.id + '/' + String(taskId) + '/' + Date.now() + '.' + ext;
-    console.log('Uploading to storage path:', path);
-    const { error: upErr } = await _sb.storage.from('attachments').upload(path, file);
-    if (upErr) { console.error('Storage upload error:', upErr); showToast('Upload failed: ' + upErr.message, 'var(--now)'); setSyncDot('err'); return; }
-    console.log('Storage upload OK, inserting to DB for task:', String(taskId));
-    const { data: row, error: dbErr } = await _sb.from('attachments')
-      .insert({ user_id: _user.id, task_id: String(taskId), filename: file.name, size: file.size, mime_type: file.type, storage_path: path })
-      .select().single();
-    console.log('DB insert result - row:', JSON.stringify(row), 'error:', dbErr ? dbErr.message : null);
-    if (dbErr) { showToast('Save failed: ' + dbErr.message, 'var(--now)'); setSyncDot('err'); return; }
-    const task = tasks.find(t => t.id == taskId);
-    console.log('Task found:', !!task, 'taskId type:', typeof taskId, 'task.id type:', task ? typeof task.id : 'n/a');
+
+    // Upload via fetch directly — bypasses Supabase JS client lock contention
+    const uploadRes = await fetch(_SURL + '/storage/v1/object/attachments/' + path, {
+      method: 'POST',
+      headers: {
+        'Authorization': 'Bearer ' + accessToken,
+        'Content-Type': file.type || 'application/octet-stream',
+        'x-upsert': 'false'
+      },
+      body: file
+    });
+    if (!uploadRes.ok) {
+      const errText = await uploadRes.text();
+      showToast('Upload failed: ' + uploadRes.status, 'var(--now)');
+      setSyncDot('err');
+      console.error('Storage upload failed:', errText);
+      return;
+    }
+
+    // Insert attachment record via fetch directly too
+    const insertRes = await fetch(_SURL + '/rest/v1/attachments', {
+      method: 'POST',
+      headers: {
+        'Authorization': 'Bearer ' + accessToken,
+        'apikey': _SKEY,
+        'Content-Type': 'application/json',
+        'Prefer': 'return=representation'
+      },
+      body: JSON.stringify({
+        user_id: _user.id,
+        task_id: String(taskId),
+        filename: file.name,
+        size: file.size,
+        mime_type: file.type || 'application/octet-stream',
+        storage_path: path
+      })
+    });
+    if (!insertRes.ok) {
+      const errText = await insertRes.text();
+      showToast('Save failed: ' + insertRes.status, 'var(--now)');
+      setSyncDot('err');
+      console.error('DB insert failed:', errText);
+      return;
+    }
+    const rows = await insertRes.json();
+    const row  = Array.isArray(rows) ? rows[0] : rows;
+
+    // Attach to in-memory task
+    const task = tasks.find(t => String(t.id) === String(taskId));
     if (task) {
       if (!task.attachments) task.attachments = [];
       task.attachments.push({ id: row.id, filename: file.name, size: file.size, mime_type: file.type, storage_path: path });
@@ -4013,13 +4049,13 @@ async function handleAttUpload(e) {
         _attOpenId = taskId;
         const p = document.getElementById('atp-' + taskId);
         if (p) { p.classList.add('open'); renderAttPanel(taskId); }
-      }, 60);
+      }, 80);
     }
     setSyncDot('ok');
     showToast('Attached: ' + file.name, 'var(--later)');
   } catch(err) {
-    console.error('handleAttUpload caught error:', err);
-    showToast('Upload error: ' + err.message, 'var(--now)');
+    console.error('handleAttUpload error:', err);
+    showToast('Upload error — check console', 'var(--now)');
     setSyncDot('err');
   }
 }
@@ -4030,34 +4066,69 @@ async function openAtt(el) {
   const mimeType    = el.dataset.mime;
   const filename    = el.dataset.name;
   if (!storagePath) return;
-  const { data, error } = await _sb.storage.from('attachments').createSignedUrl(storagePath, 120);
-  if (error || !data) { showToast('Could not open file', 'var(--now)'); return; }
-  const isViewable = mimeType.startsWith('image/') || mimeType === 'application/pdf';
-  const a = document.createElement('a');
-  a.href = data.signedUrl;
-  a.target = '_blank';
-  if (!isViewable) a.download = filename;
-  document.body.appendChild(a); a.click(); document.body.removeChild(a);
+  try {
+    const { data: sessionData } = await _sb.auth.getSession();
+    const accessToken = sessionData.session ? sessionData.session.access_token : null;
+    if (!accessToken) { showToast('Please sign in again', 'var(--now)'); return; }
+    // Get signed URL via fetch
+    const res = await fetch(_SURL + '/storage/v1/object/sign/attachments/' + storagePath, {
+      method: 'POST',
+      headers: {
+        'Authorization': 'Bearer ' + accessToken,
+        'apikey': _SKEY,
+        'Content-Type': 'application/json'
+      },
+      body: JSON.stringify({ expiresIn: 120 })
+    });
+    if (!res.ok) { showToast('Could not open file', 'var(--now)'); return; }
+    const json = await res.json();
+    const signedUrl = _SURL + '/storage/v1' + json.signedURL;
+    const isViewable = mimeType && (mimeType.startsWith('image/') || mimeType === 'application/pdf');
+    const a = document.createElement('a');
+    a.href = signedUrl;
+    a.target = '_blank';
+    if (!isViewable) a.download = filename;
+    document.body.appendChild(a); a.click(); document.body.removeChild(a);
+  } catch(err) {
+    console.error('openAtt error:', err);
+    showToast('Could not open file', 'var(--now)');
+  }
 }
 
 async function deleteAtt(el) {
-  if (!_sb || !_user) return;
+  if (!_user) return;
   const taskId      = el.dataset.task;
   const attId       = el.dataset.id;
   const storagePath = el.dataset.path;
-  await _sb.storage.from('attachments').remove([storagePath]);
-  await _sb.from('attachments').delete().eq('id', attId);
-  const task = tasks.find(t => String(t.id) === String(taskId));
-  if (task) {
-    task.attachments = (task.attachments || []).filter(a => a.id !== attId);
-    save(); render();
-    setTimeout(() => {
-      _attOpenId = taskId;
-      const p = document.getElementById('atp-' + taskId);
-      if (p) { p.classList.add('open'); renderAttPanel(taskId); }
-    }, 60);
+  try {
+    const { data: sessionData } = await _sb.auth.getSession();
+    const accessToken = sessionData.session ? sessionData.session.access_token : null;
+    if (!accessToken) { showToast('Please sign in again', 'var(--now)'); return; }
+    // Delete from storage via fetch
+    await fetch(_SURL + '/storage/v1/object/attachments/' + storagePath, {
+      method: 'DELETE',
+      headers: { 'Authorization': 'Bearer ' + accessToken, 'apikey': _SKEY }
+    });
+    // Delete from DB via fetch
+    await fetch(_SURL + '/rest/v1/attachments?id=eq.' + attId, {
+      method: 'DELETE',
+      headers: { 'Authorization': 'Bearer ' + accessToken, 'apikey': _SKEY }
+    });
+    const task = tasks.find(t => String(t.id) === String(taskId));
+    if (task) {
+      task.attachments = (task.attachments || []).filter(a => a.id !== attId);
+      save(); render();
+      setTimeout(() => {
+        _attOpenId = taskId;
+        const p = document.getElementById('atp-' + taskId);
+        if (p) { p.classList.add('open'); renderAttPanel(taskId); }
+      }, 60);
+    }
+    showToast('Attachment deleted', 'var(--muted)');
+  } catch(err) {
+    console.error('deleteAtt error:', err);
+    showToast('Delete failed', 'var(--now)');
   }
-  showToast('Attachment deleted', 'var(--muted)');
 }
 
 function attIcon(mime) {
@@ -4100,7 +4171,16 @@ let _rt = null;          // realtime channel
 // ── Init (called after CDN loads) ─────────────────────────
 function sbInit() {
   if (typeof supabase === 'undefined') { setTimeout(sbInit, 300); return; }
-  _sb = supabase.createClient(_SURL, _SKEY);
+  _sb = supabase.createClient(_SURL, _SKEY, {
+    auth: {
+      persistSession: true,
+      storageKey: 'tf-sb-auth',
+      storage: window.localStorage,
+      autoRefreshToken: true,
+      detectSessionInUrl: true,
+      lock: async (name, acquireTimeout, fn) => fn()
+    }
+  });
   _sb.auth.onAuthStateChange(async (_e, session) => {
     _user = session ? session.user : null;
     updateSyncUI();
